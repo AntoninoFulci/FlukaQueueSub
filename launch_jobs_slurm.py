@@ -118,7 +118,11 @@ def launch_jobs(input_file, job_number, custom_exe, queue, mem, ntasks, nodes, t
         if dry_run:
             logging.info(f"Dry run: sbatch --partition={queue} ./{job_name}.sh")
         else:
-            os.system(f"sbatch --partition={queue} ./{job_name}.sh")
+            result = subprocess.run(f"sbatch --partition={queue} ./{job_name}.sh", shell=True, capture_output=True, text=True)
+            if result.returncode == 0:
+                print(f"Job {job_number} {result.stdout.strip()}")
+            else:
+                print(f"Job {job_number} submission failed: {result.stderr.strip()}")
         
         os.chdir("../..")
 
@@ -160,8 +164,8 @@ if __name__ == "__main__":
     
     table = [
         ["Command",  "Parameter",                    "Value"],
-        ["-f",      f"{M}Input file{RE}",           f"{M}{args.input}{RE}"],
-        ["-n",      f"{M}Number of jobs{RE}",       f"{M}{args.njobs}{RE}"],
+        ["-f",      f"{R}Input file{RE}",           f"{M}{args.input}{RE}"],
+        ["-n",      f"{R}Number of jobs{RE}",       f"{M}{args.njobs}{RE}"],
         ["-c",      f"{M}Custom executable{RE}",    f"{M}{args.custom_exe}{RE}"],
         ["-q",      f"{M}Queue{RE}",                f"{M}{args.queue}{RE}"],
         ["-m",      f"{C}Memory{RE}",               f"{C}{args.mem}{RE}"],
