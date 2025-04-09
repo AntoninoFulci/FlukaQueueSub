@@ -108,9 +108,9 @@ def launch_jobs(input_file, job_number, custom_exe, queue, mem, ntasks, time, dr
         else:
             result = subprocess.run(f"bsub < ./{job_name}.sh", shell=True, capture_output=True, text=True)
             if result.returncode == 0:
-                print(f"Job {job_number} {result.stdout.strip()}")
+                print(f"Job {i} {result.stdout.strip()}")
             else:
-                print(f"Job {job_number} submission failed: {result.stderr.strip()}")
+                print(f"Job {i} submission failed: {result.stderr.strip()}")
         
         os.chdir("../..")
 
