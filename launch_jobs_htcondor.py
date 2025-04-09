@@ -118,7 +118,7 @@ def launch_jobs(input_file, job_number, custom_exe, queue, mem, ncpu, disk, time
             logging.info(f"Dry run: condor_submit {submit_description}")
         else:
             submit_result = schedd.submit(htcondor.Submit(submit_description))
-            logging.info(f"Submitted job {submit_result.cluster()}")
+            logging.info(f"Submitted job {i}: {submit_result.cluster()}")
         
         os.chdir("../..")
 
