@@ -1,95 +1,129 @@
-# Fluka Queue Submission Scripts
+## Fluka Queue Submission Scripts
 
-This repository contains scripts to launch FLUKA jobs using different queue systems: SLURM and HTCondor.
+This repository contains scripts to launch FLUKA jobs using different queue systems: SLURM, LSF, HTCondor, and Task Spooler (TS).
 
 <p align="center">
-    <img src="output.png"/>
+    <img src="assets/output.png"/>
 </p>
 
 ## Scripts
 
-1. `launch_jobs_slurm.py`
-    - This script can be used to launch jobs using the SLURM queue.
-2. `launch_jobs_htcondor.py`
-    - This script can be used to launch jobs using the HTCondor queue.
+1. `scripts/launch_jobs_slurm.py`
+   - Launch FLUKA jobs on a SLURM cluster.
+2. `scripts/launch_jobs_lsf.py`
+   - Launch FLUKA jobs on an LSF cluster.
+3. `scripts/launch_jobs_htcondor.py`
+   - Launch FLUKA jobs on an HTCondor pool.
+4. `scripts/launch_jobs_ts.py`
+   - Launch FLUKA jobs using Task Spooler (TS) on a single node.
 
 ## Prerequisites
 
 - Python 3.x
-- FLUKA installed and configured
+- FLUKA installed and configured (available via `fluka-config`)
+- Queue system client tools available on `PATH`:
+  - `sbatch` for SLURM
+  - `bsub` for LSF
+  - `condor_submit` and `htcondor` Python bindings for HTCondor
+  - `ts` for Task Spooler
 - Required Python packages: `argparse`, `os`, `random`, `subprocess`, `logging`, `colorama`, `tabulate`, `string`, `htcondor` (for HTCondor script)
 
 ## Installation
 
 1. Clone the repository:
-    ```sh
-    git clone <repository_url>
-    cd <repository_directory>
-    ```
 
-2. Install the required Python packages:
-    ```sh
-    pip install colorama tabulate htcondor
-    ```
+   ```sh
+   git clone <repository_url>
+   cd <repository_directory>
+   ```
+2. Install the required Python packages (preferably in a virtual environment):
 
-3. Make the scripts executable:
-    ```sh
-    chmod +x launch_jobs_slurm.py
-    chmod +x launch_jobs_htcondor.py
-    ```
+   ```sh
+   pip install colorama tabulate htcondor
+   ```
+3. Make the launcher scripts executable:
+
+   ```sh
+   chmod +x scripts/launch_jobs_slurm.py
+   chmod +x scripts/launch_jobs_lsf.py
+   chmod +x scripts/launch_jobs_htcondor.py
+   chmod +x scripts/launch_jobs_ts.py
+   ```
 
 ## Usage
 
-### SLURM Queue
+In all examples below, replace `input.inp` with your FLUKA input file and adjust parameters as needed.
 
-To launch jobs using the SLURM queue, use the `launch_jobs_slurm.py` script:
+### SLURM queue
 
-```sh
-./launch_jobs_slurm.py -f input.inp -n 10 -c custom_exe -q queue -m 1500 -t 1 -o 1 -T 1-00:00:00
-```
-
-### HTCondor Queue
-
-To launch jobs using the HTCondor queue, use the `launch_jobs_htcondor.py` script:
+To launch jobs using the SLURM queue, use the `scripts/launch_jobs_slurm.py` script:
 
 ```sh
-./launch_jobs_htcondor.py -f input.inp -n 10 -c custom_exe -q queue -m 1500 -t 1 -o 1 -T 1-00:00:00
+./scripts/launch_jobs_slurm.py -f input.inp -n 10 -c custom_exe -q queue -m 1500 -t 1 -o 1 -T 1-00:00:00
 ```
 
-### Dry Run
+### LSF queue
+
+To launch jobs using the LSF queue, use the `scripts/launch_jobs_lsf.py` script:
+
+```sh
+./scripts/launch_jobs_lsf.py -f input.inp -n 10 -c custom_exe -q queue -m 1500 -t 1 -T 1-00:00:00
+```
+
+### HTCondor queue
+
+To launch jobs using the HTCondor queue, use the `scripts/launch_jobs_htcondor.py` script:
+
+```sh
+./scripts/launch_jobs_htcondor.py -f input.inp -n 10 -c custom_exe -q vanilla -m 1500 -t 1 -o 100000 -T 86400
+```
+
+### Task Spooler (TS)
+
+To launch jobs using Task Spooler on a single node, use the `scripts/launch_jobs_ts.py` script:
+
+```sh
+./scripts/launch_jobs_ts.py -f input.inp -n 10 -c custom_exe -d output_dir
+```
+
+### Dry run
 
 To perform a dry run without submitting jobs, add the `-w` or `--dry-run` flag:
 
 ```sh
-./launch_jobs_slurm.py -f input.inp -n 10 -c custom_exe -q queue -m 1500 -t 1 -o 1 -T 1-00:00:00 -w
-./launch_jobs_htcondor.py -f input.inp -n 10 -c custom_exe -q queue -m 1500 -t 1 -o 1 -T 1-00:00:00 -w
+./scripts/launch_jobs_slurm.py -f input.inp -n 10 -c custom_exe -q queue -m 1500 -t 1 -o 1 -T 1-00:00:00 -w
+./scripts/launch_jobs_lsf.py   -f input.inp -n 10 -c custom_exe -q queue -m 1500 -t 1 -T 1-00:00:00 -w
+./scripts/launch_jobs_htcondor.py -f input.inp -n 10 -c custom_exe -q vanilla -m 1500 -t 1 -o 100000 -T 86400 -w
+./scripts/launch_jobs_ts.py    -f input.inp -n 10 -c custom_exe -d output_dir -w
 ```
 
-### Parameters
+### Common parameters
 
-- `-f`: Input file for the FLUKA job.
-- `-n`: Number of jobs to launch.
-- `-c`: Custom executable to use.
-- `-q`: Queue to submit the jobs to.
-- `-m`: Memory required for each job (in MB).
-- `-t`: Number of threads to use.
-- `-o`: Output option.
-- `-T`: Time limit for the job (format: days-hours:minutes:seconds).
+- `-f` / `--input`: Input file for the FLUKA job (must end with `.inp`).
+- `-n` / `--njobs`: Number of jobs to launch.
+- `-c` / `--custom_exe`: Custom FLUKA executable to use (`rfluka` is auto-detected via `fluka-config` if omitted or set to `"None"`).
+- `-q` / `--queue`: Queue/partition to submit the jobs to (where applicable).
+- `-m` / `--mem`: Memory required for each job.
+- `-t` / `--ntasks` / `--ncpu`: Number of tasks/CPUs to use (name depends on the script).
+- `-T` / `--time`: Time limit for the job (format and meaning depend on the queue system).
+- `-d` / `--output-dir`: Output directory for job files.
+- `-w` / `--dry-run`: Perform a dry run without submitting jobs.
 
-### Output
+### Output layout
 
-After the simulations end, the output files will be located in the specified output directory (or the default directory if not specified). The directory structure will be as follows:
+After the simulations end, the output files will be located in the specified output directory (or a default directory derived from the input name). The directory structure is:
 
-- The input file name (without the `.inp` extension) will be used as the base directory name.
-- Inside the base directory, there will be subdirectories for each job, named `job_0001`, `job_0002`, etc.
-- Each job subdirectory will contain the following files:
+- The input file name (without the `.inp` extension) is used as the base directory name (unless `--output-dir` is provided).
+- Inside the base directory, there are subdirectories for each job, named `job_0001`, `job_0002`, etc.
+- Each job subdirectory contains:
   - `*.out`: Standard output of the job.
   - `*.err`: Standard error of the job.
   - `*.log`: Log file of the job (HTCondor only).
   - `*.root`: Output files generated by FLUKA (optional, depending on the custom executable).
 
 Example directory structure:
-```
+
+```text
 input_file_name/
 ├── job_0001/
 │   ├── job_0001.out
@@ -101,7 +135,5 @@ input_file_name/
 │   ├── job_0002.err
 │   ├── job_0002.log (HTCondor only)
 │   └── *.root (optional)
-...
+└── ...
 ```
-
-**This README was generated using AI (GitHub Copilot).
