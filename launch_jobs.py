@@ -112,9 +112,9 @@ def run_folder(folder: str) -> None:
     configs = []
     for path in yaml_paths:
         try:
-            args = config.load_yaml_config(path, BACKENDS)
-            BACKENDS[args.backend].validate(args)
-            configs.append((path, args))
+            cfg = config.load_yaml_config(path, BACKENDS)
+            BACKENDS[cfg.backend].validate(cfg)
+            configs.append((path, cfg))
         except Exception as e:
             logging.error("File %r non valido: %s", path, e)
 
@@ -124,11 +124,11 @@ def run_folder(folder: str) -> None:
 
     C = display.COLORS
     rows = [["File", "Backend", "N. job"]]
-    for path, args in configs:
+    for path, cfg in configs:
         rows.append([
             os.path.basename(path),
-            f"{C['M']}{args.backend}{C['RE']}",
-            f"{C['M']}{args.njobs}{C['RE']}",
+            f"{C['M']}{cfg.backend}{C['RE']}",
+            f"{C['M']}{cfg.njobs}{C['RE']}",
         ])
     display.print_table(rows)
 
@@ -137,10 +137,10 @@ def run_folder(folder: str) -> None:
         return
 
     fluka_path, _ = fluka.detect_fluka_path()
-    for path, args in configs:
+    for path, cfg in configs:
         try:
             logging.info("Avvio: %s", os.path.basename(path))
-            _execute_jobs(args, fluka_path)
+            _execute_jobs(cfg, fluka_path)
         except Exception as e:
             logging.error("Errore in %r: %s", path, e)
 
