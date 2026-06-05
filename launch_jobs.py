@@ -100,14 +100,18 @@ def run_from_args(args: Namespace) -> None:
 
 
 def run_folder(folder: str) -> None:
-    pass  # implemented in Task 4
+    logging.warning("Folder mode non ancora implementato.")
 
 
 def main() -> None:
     if len(sys.argv) > 1:
         first_arg = sys.argv[1]
-        if first_arg.endswith((".yaml", ".yml")):
-            args = config.load_yaml_config(first_arg, BACKENDS)
+        if first_arg.endswith((".yaml", ".yml")) and not os.path.isdir(first_arg):
+            try:
+                args = config.load_yaml_config(first_arg, BACKENDS)
+            except (FileNotFoundError, ValueError) as e:
+                logging.error(str(e))
+                sys.exit(1)
             run_from_args(args)
             return
         if os.path.isdir(first_arg):

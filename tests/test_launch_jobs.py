@@ -1,5 +1,6 @@
 import sys
 import pytest
+import yaml as _yaml
 from unittest.mock import patch
 
 
@@ -57,9 +58,6 @@ def test_lsf_dry_run_creates_sh_files(tmp_path, monkeypatch):
     output_dir = tmp_path / "sim"
     sh_files = list(output_dir.rglob("*.sh"))
     assert len(sh_files) == 2
-
-
-import yaml as _yaml
 
 
 def test_yaml_mode_ts_dry_run(tmp_path, monkeypatch):
@@ -121,3 +119,16 @@ def test_yaml_mode_invalid_input_extension_exits(tmp_path):
         importlib.reload(launch_jobs)
         with pytest.raises(SystemExit):
             launch_jobs.main()
+
+
+def test_yaml_mode_missing_backend_exits(tmp_path):
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(_yaml.dump({"input": "sim.inp", "njobs": 1}))  # no backend key
+
+    sys.argv = ["launch_jobs.py", str(cfg)]
+
+    import launch_jobs
+    import importlib
+    importlib.reload(launch_jobs)
+    with pytest.raises(SystemExit):
+        launch_jobs.main()
