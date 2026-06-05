@@ -47,3 +47,16 @@ def test_detect_fluka_path_exits_if_not_found():
     with patch("subprocess.check_output", side_effect=subprocess.CalledProcessError(1, "fluka-config")):
         with pytest.raises(SystemExit):
             detect_fluka_path()
+
+
+def test_generate_input_raises_if_no_randomiz(tmp_path):
+    base = "sim"
+    (tmp_path / f"{base}.inp").write_text("TITLE test\nSTOP\n")
+    with pytest.raises(ValueError, match="RANDOMIZ"):
+        generate_input(base, 1, str(tmp_path))
+
+
+def test_detect_fluka_path_exits_if_command_missing():
+    with patch("subprocess.check_output", side_effect=FileNotFoundError):
+        with pytest.raises(SystemExit):
+            detect_fluka_path()
