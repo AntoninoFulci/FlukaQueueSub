@@ -2,8 +2,10 @@ from argparse import ArgumentParser, Namespace
 
 import yaml
 
+from backends.base import QueueBackend
 
-def load_yaml_config(path: str, backends: dict) -> Namespace:
+
+def load_yaml_config(path: str, backends: dict[str, QueueBackend]) -> Namespace:
     with open(path) as f:
         data = yaml.safe_load(f)
 
@@ -32,6 +34,14 @@ def load_yaml_config(path: str, backends: dict) -> Namespace:
     defaults = vars(parser.parse_args([]))
     defaults.update(data)
     defaults["backend"] = backend_name
+
+    if defaults.get("njobs") is not None:
+        try:
+            defaults["njobs"] = int(defaults["njobs"])
+        except (ValueError, TypeError):
+            raise ValueError(f"'njobs' deve essere un intero, trovato: {defaults.get('njobs')!r}")
+        if defaults["njobs"] < 1:
+            raise ValueError(f"'njobs' deve essere >= 1, trovato: {defaults['njobs']}")
 
     if defaults.get("input") is None:
         raise ValueError(f"Campo 'input' mancante in {path!r}")

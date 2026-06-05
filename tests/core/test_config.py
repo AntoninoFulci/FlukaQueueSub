@@ -95,7 +95,7 @@ def test_unknown_backend_raises(tmp_path):
     from backends.ts import TSBackend
     backends = {"ts": TSBackend()}
     path = make_yaml(tmp_path, {"backend": "unknown", "input": "sim.inp", "njobs": 1})
-    with pytest.raises(ValueError, match="sconosciuto"):
+    with pytest.raises(ValueError, match="unknown"):
         load_yaml_config(path, backends)
 
 
@@ -113,5 +113,30 @@ def test_missing_njobs_raises(tmp_path):
     from backends.ts import TSBackend
     backends = {"ts": TSBackend()}
     path = make_yaml(tmp_path, {"backend": "ts", "input": "sim.inp"})
+    with pytest.raises(ValueError, match="njobs"):
+        load_yaml_config(path, backends)
+
+
+def test_load_htcondor_defaults(tmp_path):
+    from core.config import load_yaml_config
+    from backends.htcondor import HTCondorBackend
+    backends = {"condor": HTCondorBackend()}
+    path = make_yaml(tmp_path, {"backend": "condor", "input": "sim.inp", "njobs": 1})
+    args = load_yaml_config(path, backends)
+    assert args.queue == "vanilla"
+    assert args.mem == "1500"
+    assert args.ncpu == 1
+    assert args.disk == 100000
+    assert args.time == 86400
+    assert args.transfer_files == "yes"
+    assert args.output == "job_$(Cluster)_$(Process).out"
+    assert args.output_dir is None  # common arg, should be separate from args.output
+
+
+def test_njobs_zero_raises(tmp_path):
+    from core.config import load_yaml_config
+    from backends.ts import TSBackend
+    backends = {"ts": TSBackend()}
+    path = make_yaml(tmp_path, {"backend": "ts", "input": "sim.inp", "njobs": 0})
     with pytest.raises(ValueError, match="njobs"):
         load_yaml_config(path, backends)
