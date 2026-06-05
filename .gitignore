@@ -7,3 +7,4 @@ test_sim/
 tests/
 docs/
 .mypy_cache/
+JobConfigs/
