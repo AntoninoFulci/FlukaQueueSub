@@ -65,6 +65,11 @@ def test_submit_raises_on_failure():
             with pytest.raises(RuntimeError, match="Queue not found"):
                 BACKEND.submit("/tmp/job_0001.sh", job_info, make_args(dry_run=False))
 
+def test_submit_raises_if_script_path_is_none():
+    job_info = JobInfo("sim_0001.inp", 1, "/usr/local/fluka/bin", None)
+    with pytest.raises(RuntimeError, match="script_path"):
+        BACKEND.submit(None, job_info, make_args(dry_run=False))
+
 def test_table_rows_returns_list():
     rows = BACKEND.table_rows(make_args(), "/bin", "/fluka")
     assert isinstance(rows, list)

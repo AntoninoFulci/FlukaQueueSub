@@ -5,17 +5,12 @@ from string import Template
 
 from backends.base import JobInfo, QueueBackend
 from core.display import COLORS
+from core.utils import parse_time_to_seconds
 
 _DEFAULT_QUEUE = "production"
 _MAX_TIME = "4-00:00:00"
 
-
-def _time_to_seconds(t: str) -> int:
-    days, rest = t.split("-")
-    h, m, s = rest.split(":")
-    return int(days) * 86400 + int(h) * 3600 + int(m) * 60 + int(s)
-
-_MAX_TIME_SECONDS = _time_to_seconds(_MAX_TIME)
+_MAX_TIME_SECONDS = parse_time_to_seconds(_MAX_TIME)
 
 _SCRIPT_TEMPLATE = Template("""\
 #!/bin/bash
@@ -54,7 +49,7 @@ class SlurmBackend(QueueBackend):
         parser.add_argument("-T", "--time", type=str, default="1-00:00:00")
 
     def validate(self, args: Namespace) -> None:
-        if _time_to_seconds(args.time) > _MAX_TIME_SECONDS:
+        if parse_time_to_seconds(args.time) > _MAX_TIME_SECONDS:
             raise ValueError(f"Il time limit non puo' superare {_MAX_TIME}")
 
     def generate_script(self, job_info: JobInfo, job_dir: str, args: Namespace) -> str:
@@ -78,6 +73,8 @@ class SlurmBackend(QueueBackend):
         return script_path
 
     def submit(self, script_path: str | None, job_info: JobInfo, args: Namespace) -> str:
+        if script_path is None:
+            raise RuntimeError("SlurmBackend requires a script file (script_path cannot be None)")
         if args.dry_run:
             return f"[dry run] sbatch --partition={args.queue} {script_path}"
         result = subprocess.run(

@@ -55,7 +55,7 @@ class HTCondorBackend(QueueBackend):
 
     def submit(self, script_path: str | None, job_info: JobInfo, args: Namespace) -> str:
         submit_desc = {
-            "universe": "vanilla",
+            "universe": args.queue,
             "executable": script_path,
             "transfer_input_files": job_info.input_file,
             "should_transfer_files": args.transfer_files,

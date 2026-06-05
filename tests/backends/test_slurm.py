@@ -57,3 +57,8 @@ def test_submit_raises_on_failure():
         mock_run.return_value.stderr = "Partition not found"
         with pytest.raises(RuntimeError, match="Partition not found"):
             BACKEND.submit("/tmp/job.sh", job_info, make_args(dry_run=False))
+
+def test_submit_raises_if_script_path_is_none():
+    job_info = JobInfo("sim_0001.inp", 1, "/usr/local/fluka/bin", None)
+    with pytest.raises(RuntimeError, match="script_path"):
+        BACKEND.submit(None, job_info, make_args(dry_run=False))

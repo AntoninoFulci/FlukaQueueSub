@@ -1,4 +1,3 @@
-import os
 import sys
 import pytest
 from unittest.mock import patch
@@ -22,12 +21,12 @@ def test_invalid_extension_exits():
         launch_jobs.main()
 
 
-def test_ts_dry_run_creates_job_dirs(tmp_path):
+def test_ts_dry_run_creates_job_dirs(tmp_path, monkeypatch):
     inp = tmp_path / "myinput.inp"
     inp.write_text("RANDOMIZ          1.  12345678\nSTOP\n")
 
     sys.argv = ["launch_jobs.py", "ts", "-f", str(inp), "-n", "3", "-w"]
-    os.chdir(tmp_path)
+    monkeypatch.chdir(tmp_path)
 
     with patch("core.fluka.detect_fluka_path", return_value=("/usr/local/bin", "/usr/local/fluka")), \
          patch("core.display.confirm", return_value=True):
@@ -41,12 +40,12 @@ def test_ts_dry_run_creates_job_dirs(tmp_path):
     assert len(list(output_dir.iterdir())) == 3
 
 
-def test_lsf_dry_run_creates_sh_files(tmp_path):
+def test_lsf_dry_run_creates_sh_files(tmp_path, monkeypatch):
     inp = tmp_path / "sim.inp"
     inp.write_text("RANDOMIZ          1.  12345678\nSTOP\n")
 
     sys.argv = ["launch_jobs.py", "lsf", "-f", str(inp), "-n", "2", "-w"]
-    os.chdir(tmp_path)
+    monkeypatch.chdir(tmp_path)
 
     with patch("core.fluka.detect_fluka_path", return_value=("/usr/local/bin", "/usr/local/fluka")), \
          patch("core.display.confirm", return_value=True):
