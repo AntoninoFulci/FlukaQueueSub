@@ -100,7 +100,49 @@ def run_from_args(args: Namespace) -> None:
 
 
 def run_folder(folder: str) -> None:
-    logging.warning("Folder mode non ancora implementato.")
+    yaml_files = sorted(
+        f for f in os.listdir(folder) if f.endswith((".yaml", ".yml"))
+    )
+    yaml_paths = [os.path.join(folder, f) for f in yaml_files]
+
+    if not yaml_paths:
+        logging.warning("Nessun file YAML trovato in %r", folder)
+        return
+
+    configs = []
+    for path in yaml_paths:
+        try:
+            args = config.load_yaml_config(path, BACKENDS)
+            BACKENDS[args.backend].validate(args)
+            configs.append((path, args))
+        except Exception as e:
+            logging.error("File %r non valido: %s", path, e)
+
+    if not configs:
+        logging.error("Nessuna configurazione valida trovata.")
+        return
+
+    C = display.COLORS
+    rows = [["File", "Backend", "N. job"]]
+    for path, args in configs:
+        rows.append([
+            os.path.basename(path),
+            f"{C['M']}{args.backend}{C['RE']}",
+            f"{C['M']}{args.njobs}{C['RE']}",
+        ])
+    display.print_table(rows)
+
+    if not display.confirm(f"Procedere con {len(configs)} lanci? (yes/no): "):
+        logging.info("Lancio annullato.")
+        return
+
+    fluka_path, _ = fluka.detect_fluka_path()
+    for path, args in configs:
+        try:
+            logging.info("Avvio: %s", os.path.basename(path))
+            _execute_jobs(args, fluka_path)
+        except Exception as e:
+            logging.error("Errore in %r: %s", path, e)
 
 
 def main() -> None:
