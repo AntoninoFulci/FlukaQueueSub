@@ -92,9 +92,9 @@ def main() -> None:
         script_path = backend.generate_script(job_info, job_dir, args)
         try:
             result = backend.submit(script_path, job_info, args)
-            print(f"Job {i}: {result}")
+            logging.info("Job %d: %s", i, result)
         except RuntimeError as e:
-            logging.error(f"Job {i} fallito: {e}")
+            logging.error("Job %d fallito: %s", i, e)
 
 
 if __name__ == "__main__":
