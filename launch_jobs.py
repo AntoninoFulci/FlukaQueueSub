@@ -3,14 +3,14 @@
 import logging
 import os
 import sys
-from argparse import ArgumentParser, RawTextHelpFormatter
+from argparse import ArgumentParser, Namespace, RawTextHelpFormatter
 
 from backends.base import JobInfo
 from backends.htcondor import HTCondorBackend
 from backends.lsf import LSFBackend
 from backends.slurm import SlurmBackend
 from backends.ts import TSBackend
-from core import display, filesystem, fluka
+from core import config, display, filesystem, fluka
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -50,17 +50,31 @@ def _build_parser() -> ArgumentParser:
     return parser
 
 
-def main() -> None:
-    parser = _build_parser()
-    args = parser.parse_args()
+def _execute_jobs(args: Namespace, fluka_path: str) -> None:
+    backend = BACKENDS[args.backend]
+    base_name = os.path.splitext(os.path.basename(args.input))[0]
+    output_dir = filesystem.setup_output_dir(base_name, args.output_dir)
 
+    for i in range(1, args.njobs + 1):
+        job_dir = filesystem.setup_job_dir(output_dir, i, args.input)
+        new_input = fluka.generate_input(base_name, i, job_dir)
+        job_info = JobInfo(new_input, i, fluka_path, args.custom_exe)
+        script_path = backend.generate_script(job_info, job_dir, args)
+        try:
+            result = backend.submit(script_path, job_info, args)
+            logging.info("Job %d: %s", i, result)
+        except RuntimeError as e:
+            logging.error("Job %d fallito: %s", i, e)
+
+
+def run_from_args(args: Namespace) -> None:
     if not args.input.endswith(".inp"):
         logging.error("Il file di input deve terminare con .inp")
         sys.exit(1)
 
     fluka_path, fluka_folder = fluka.detect_fluka_path()
-
     backend = BACKENDS[args.backend]
+
     try:
         backend.validate(args)
     except ValueError as e:
@@ -68,7 +82,6 @@ def main() -> None:
         sys.exit(1)
 
     C = display.COLORS
-    base_name = os.path.splitext(os.path.basename(args.input))[0]
     common_rows = [
         ["Flag", "Parametro", "Valore"],
         ["-f", f"{C['R']}Input file{C['RE']}",  f"{C['M']}{args.input}{C['RE']}"],
@@ -83,18 +96,26 @@ def main() -> None:
         logging.info("Lancio annullato.")
         sys.exit(0)
 
-    output_dir = filesystem.setup_output_dir(base_name, args.output_dir)
+    _execute_jobs(args, fluka_path)
 
-    for i in range(1, args.njobs + 1):
-        job_dir = filesystem.setup_job_dir(output_dir, i, args.input)
-        new_input = fluka.generate_input(base_name, i, job_dir)
-        job_info = JobInfo(new_input, i, fluka_path, args.custom_exe)
-        script_path = backend.generate_script(job_info, job_dir, args)
-        try:
-            result = backend.submit(script_path, job_info, args)
-            logging.info("Job %d: %s", i, result)
-        except RuntimeError as e:
-            logging.error("Job %d fallito: %s", i, e)
+
+def run_folder(folder: str) -> None:
+    pass  # implemented in Task 4
+
+
+def main() -> None:
+    if len(sys.argv) > 1:
+        first_arg = sys.argv[1]
+        if first_arg.endswith((".yaml", ".yml")):
+            args = config.load_yaml_config(first_arg, BACKENDS)
+            run_from_args(args)
+            return
+        if os.path.isdir(first_arg):
+            run_folder(first_arg)
+            return
+    parser = _build_parser()
+    args = parser.parse_args()
+    run_from_args(args)
 
 
 if __name__ == "__main__":
