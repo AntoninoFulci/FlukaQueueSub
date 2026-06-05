@@ -39,7 +39,7 @@ def test_submit_calls_ts():
         mock_run.return_value.stdout = "3"
         result = BACKEND.submit(None, job_info, make_args(dry_run=False))
     assert "3" in result
-    assert mock_run.call_args[0][0].startswith("ts ")
+    assert mock_run.call_args[0][0][0] == "ts"
     assert "rfluka" in mock_run.call_args[0][0]
 
 def test_submit_raises_on_failure():

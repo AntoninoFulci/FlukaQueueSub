@@ -70,6 +70,10 @@ class HTCondorBackend(QueueBackend):
         }
         if args.dry_run:
             return f"[dry run] condor_submit {submit_desc}"
+        if htcondor is None:
+            raise RuntimeError(
+                "Il pacchetto htcondor non e' installato. Installarlo con: pip install htcondor"
+            )
 
         schedd = htcondor.Schedd()
         result = schedd.submit(htcondor.Submit(submit_desc))

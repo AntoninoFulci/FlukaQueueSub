@@ -61,6 +61,12 @@ def test_submit_calls_schedd(tmp_path):
     assert "42" in result
     mock_schedd.submit.assert_called_once()
 
+def test_submit_raises_if_htcondor_not_installed():
+    job_info = JobInfo("sim_0001.inp", 1, "/usr/local/fluka/bin", None)
+    with patch("backends.htcondor.htcondor", None):
+        with pytest.raises(RuntimeError, match="htcondor"):
+            BACKEND.submit("/tmp/job.sh", job_info, make_args(dry_run=False))
+
 def test_table_rows_returns_list():
     rows = BACKEND.table_rows(make_args(), "/bin", "/fluka")
     assert isinstance(rows, list)

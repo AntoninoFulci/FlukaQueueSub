@@ -1,7 +1,8 @@
+import io
 import os
 import pytest
 from argparse import Namespace
-from unittest.mock import patch
+from unittest.mock import patch, mock_open
 from backends.lsf import LSFBackend
 from backends.base import JobInfo
 
@@ -47,20 +48,22 @@ def test_submit_dry_run_returns_string():
 
 def test_submit_calls_bsub():
     job_info = JobInfo("sim_0001.inp", 1, "/usr/local/fluka/bin", None)
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value.returncode = 0
-        mock_run.return_value.stdout = "Job <12345> is submitted"
-        result = BACKEND.submit("/tmp/job_0001.sh", job_info, make_args(dry_run=False))
+    with patch("builtins.open", mock_open(read_data="")):
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = "Job <12345> is submitted"
+            result = BACKEND.submit("/tmp/job_0001.sh", job_info, make_args(dry_run=False))
     assert "12345" in result
-    assert "bsub" in mock_run.call_args[0][0]
+    assert mock_run.call_args[0][0] == ["bsub"]
 
 def test_submit_raises_on_failure():
     job_info = JobInfo("sim_0001.inp", 1, "/usr/local/fluka/bin", None)
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value.returncode = 1
-        mock_run.return_value.stderr = "Queue not found"
-        with pytest.raises(RuntimeError, match="Queue not found"):
-            BACKEND.submit("/tmp/job_0001.sh", job_info, make_args(dry_run=False))
+    with patch("builtins.open", mock_open(read_data="")):
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 1
+            mock_run.return_value.stderr = "Queue not found"
+            with pytest.raises(RuntimeError, match="Queue not found"):
+                BACKEND.submit("/tmp/job_0001.sh", job_info, make_args(dry_run=False))
 
 def test_table_rows_returns_list():
     rows = BACKEND.table_rows(make_args(), "/bin", "/fluka")

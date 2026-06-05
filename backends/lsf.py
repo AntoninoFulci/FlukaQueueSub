@@ -9,6 +9,14 @@ from core.display import COLORS
 _DEFAULT_QUEUE = "normal"
 _MAX_TIME = "4-00:00:00"
 
+
+def _time_to_seconds(t: str) -> int:
+    days, rest = t.split("-")
+    h, m, s = rest.split(":")
+    return int(days) * 86400 + int(h) * 3600 + int(m) * 60 + int(s)
+
+_MAX_TIME_SECONDS = _time_to_seconds(_MAX_TIME)
+
 _SCRIPT_TEMPLATE = Template("""\
 #!/bin/bash
 
@@ -37,7 +45,7 @@ class LSFBackend(QueueBackend):
         parser.add_argument("-T", "--time", type=str, default="1-00:00:00")
 
     def validate(self, args: Namespace) -> None:
-        if args.time > _MAX_TIME:
+        if _time_to_seconds(args.time) > _MAX_TIME_SECONDS:
             raise ValueError(f"Il time limit non puo' superare {_MAX_TIME}")
 
     def generate_script(self, job_info: JobInfo, job_dir: str, args: Namespace) -> str:
@@ -63,7 +71,8 @@ class LSFBackend(QueueBackend):
     def submit(self, script_path: str | None, job_info: JobInfo, args: Namespace) -> str:
         if args.dry_run:
             return f"[dry run] bsub < {script_path}"
-        result = subprocess.run(f"bsub < {script_path}", shell=True, capture_output=True, text=True)
+        with open(script_path) as script_file:
+            result = subprocess.run(["bsub"], stdin=script_file, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip())
         return result.stdout.strip()

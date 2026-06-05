@@ -17,15 +17,17 @@ class TSBackend(QueueBackend):
         return None
 
     def submit(self, script_path: str | None, job_info: JobInfo, args: Namespace) -> str:
-        fluka_cmd = "rfluka -M 1"
+        fluka_parts = ["rfluka", "-M", "1"]
         if job_info.custom_exe is not None:
-            fluka_cmd += f" -e {job_info.custom_exe}"
-        cmd = f"ts {fluka_cmd} {job_info.input_file}"
+            fluka_parts.extend(["-e", job_info.custom_exe])
+        fluka_parts.append(job_info.input_file)
+        cmd_list = ["ts"] + fluka_parts
 
         if args.dry_run:
-            return f"[dry run] {cmd}"
+            cmd_str = " ".join(cmd_list)
+            return f"[dry run] {cmd_str}"
 
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        result = subprocess.run(cmd_list, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip())
         return result.stdout.strip()

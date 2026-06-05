@@ -47,8 +47,8 @@ def test_submit_calls_sbatch():
         mock_run.return_value.stdout = "Submitted batch job 99"
         result = BACKEND.submit("/tmp/job.sh", job_info, make_args(dry_run=False, queue="prod"))
     assert "99" in result
-    assert "sbatch" in mock_run.call_args[0][0]
-    assert "prod" in mock_run.call_args[0][0]
+    called_cmd = mock_run.call_args[0][0]
+    assert called_cmd == ["sbatch", "--partition=prod", "/tmp/job.sh"]
 
 def test_submit_raises_on_failure():
     job_info = JobInfo("sim_0001.inp", 1, "/usr/local/fluka/bin", None)

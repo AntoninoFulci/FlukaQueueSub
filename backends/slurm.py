@@ -9,6 +9,14 @@ from core.display import COLORS
 _DEFAULT_QUEUE = "production"
 _MAX_TIME = "4-00:00:00"
 
+
+def _time_to_seconds(t: str) -> int:
+    days, rest = t.split("-")
+    h, m, s = rest.split(":")
+    return int(days) * 86400 + int(h) * 3600 + int(m) * 60 + int(s)
+
+_MAX_TIME_SECONDS = _time_to_seconds(_MAX_TIME)
+
 _SCRIPT_TEMPLATE = Template("""\
 #!/bin/bash
 
@@ -46,7 +54,7 @@ class SlurmBackend(QueueBackend):
         parser.add_argument("-T", "--time", type=str, default="1-00:00:00")
 
     def validate(self, args: Namespace) -> None:
-        if args.time > _MAX_TIME:
+        if _time_to_seconds(args.time) > _MAX_TIME_SECONDS:
             raise ValueError(f"Il time limit non puo' superare {_MAX_TIME}")
 
     def generate_script(self, job_info: JobInfo, job_dir: str, args: Namespace) -> str:
@@ -73,8 +81,8 @@ class SlurmBackend(QueueBackend):
         if args.dry_run:
             return f"[dry run] sbatch --partition={args.queue} {script_path}"
         result = subprocess.run(
-            f"sbatch --partition={args.queue} {script_path}",
-            shell=True, capture_output=True, text=True
+            ["sbatch", f"--partition={args.queue}", script_path],
+            capture_output=True, text=True
         )
         if result.returncode != 0:
             raise RuntimeError(result.stderr.strip())
