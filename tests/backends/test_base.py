@@ -1,5 +1,5 @@
 import pytest
-from argparse import ArgumentParser, Namespace
+from argparse import Namespace
 from backends.base import QueueBackend, JobInfo
 
 
@@ -12,9 +12,8 @@ class ConcreteBackend(QueueBackend):
 
 
 def test_jobinfo_fields():
-    ji = JobInfo(input_file="sim_0001.inp", iteration=1, fluka_path="/usr/bin", custom_exe="None")
-    assert ji.input_file == "sim_0001.inp"
-    assert ji.iteration == 1
+    ji = JobInfo(input_file="sim_0001.inp", iteration=1, fluka_path="/usr/bin", custom_exe=None)
+    assert ji == JobInfo(input_file="sim_0001.inp", iteration=1, fluka_path="/usr/bin", custom_exe=None)
 
 
 def test_cannot_instantiate_abstract_backend():
@@ -24,4 +23,4 @@ def test_cannot_instantiate_abstract_backend():
 
 def test_concrete_backend_instantiates():
     b = ConcreteBackend()
-    assert b.submit(None, JobInfo("f", 1, "/p", "None"), Namespace()) == "submitted"
+    assert b.submit(None, JobInfo("f", 1, "/p", None), Namespace()) == "submitted"

@@ -8,7 +8,7 @@ class JobInfo:
     input_file: str
     iteration: int
     fluka_path: str
-    custom_exe: str
+    custom_exe: str | None
 
 
 class QueueBackend(ABC):
@@ -30,5 +30,5 @@ class QueueBackend(ABC):
         """Invia il job. Restituisce una stringa descrittiva (job ID, ecc.)."""
 
     @abstractmethod
-    def table_rows(self, args: Namespace, fluka_path: str, fluka_folder: str) -> list[list]:
+    def table_rows(self, args: Namespace, fluka_path: str, fluka_folder: str) -> list[list[str]]:
         """Restituisce le righe specifiche del backend per la tabella di riepilogo."""
