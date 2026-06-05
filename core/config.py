@@ -45,6 +45,8 @@ def load_yaml_config(path: str, backends: dict[str, QueueBackend]) -> Namespace:
 
     if defaults.get("input") is None:
         raise ValueError(f"Campo 'input' mancante in {path!r}")
+    if not str(defaults["input"]).endswith(".inp"):
+        raise ValueError(f"Il file di input deve terminare con .inp: {defaults['input']!r}")
     if defaults.get("njobs") is None:
         raise ValueError(f"Campo 'njobs' mancante in {path!r}")
 

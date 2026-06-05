@@ -137,12 +137,16 @@ def run_folder(folder: str) -> None:
         return
 
     fluka_path, _ = fluka.detect_fluka_path()
+    failures = 0
     for path, cfg in configs:
         try:
             logging.info("Avvio: %s", os.path.basename(path))
             _execute_jobs(cfg, fluka_path)
         except Exception as e:
             logging.error("Errore in %r: %s", path, e)
+            failures += 1
+    if failures:
+        sys.exit(1)
 
 
 def main() -> None:

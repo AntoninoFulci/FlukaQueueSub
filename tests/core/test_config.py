@@ -140,3 +140,12 @@ def test_njobs_zero_raises(tmp_path):
     path = make_yaml(tmp_path, {"backend": "ts", "input": "sim.inp", "njobs": 0})
     with pytest.raises(ValueError, match="njobs"):
         load_yaml_config(path, backends)
+
+
+def test_input_wrong_extension_raises(tmp_path):
+    from core.config import load_yaml_config
+    from backends.ts import TSBackend
+    backends = {"ts": TSBackend()}
+    path = make_yaml(tmp_path, {"backend": "ts", "input": "sim.txt", "njobs": 1})
+    with pytest.raises(ValueError, match=r"\.inp"):
+        load_yaml_config(path, backends)
