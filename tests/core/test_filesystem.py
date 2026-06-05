@@ -3,30 +3,30 @@ import pytest
 from core.filesystem import setup_output_dir, setup_job_dir
 
 
-def test_setup_output_dir_creates_directory(tmp_path):
-    os.chdir(tmp_path)
+def test_setup_output_dir_creates_directory(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     result = setup_output_dir("myrun", None)
     assert result == "myrun"
     assert os.path.isdir(result)
 
 
-def test_setup_output_dir_uses_custom_name(tmp_path):
-    os.chdir(tmp_path)
+def test_setup_output_dir_uses_custom_name(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     result = setup_output_dir("myrun", "custom_output")
     assert result == "custom_output"
     assert os.path.isdir(result)
 
 
-def test_setup_output_dir_avoids_collision(tmp_path):
-    os.chdir(tmp_path)
+def test_setup_output_dir_avoids_collision(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     setup_output_dir("myrun", None)
     result = setup_output_dir("myrun", None)
     assert result == "myrun_1"
     assert os.path.isdir(result)
 
 
-def test_setup_output_dir_multiple_collisions(tmp_path):
-    os.chdir(tmp_path)
+def test_setup_output_dir_multiple_collisions(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     setup_output_dir("run", None)
     setup_output_dir("run", None)
     result = setup_output_dir("run", None)
@@ -41,6 +41,7 @@ def test_setup_job_dir_creates_subdirectory(tmp_path):
 
     job_dir = setup_job_dir(output_dir, 1, str(inp))
 
+    assert os.path.isabs(job_dir)
     assert os.path.isdir(job_dir)
     assert os.path.basename(job_dir) == "job_0001"
     assert os.path.isfile(os.path.join(job_dir, "sim.inp"))

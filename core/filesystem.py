@@ -17,4 +17,4 @@ def setup_job_dir(output_dir: str, iteration: int, input_file: str) -> str:
     job_dir = os.path.join(output_dir, f"job_{iteration:04d}")
     os.makedirs(job_dir)
     shutil.copy(input_file, job_dir)
-    return job_dir
+    return os.path.abspath(job_dir)
