@@ -20,6 +20,7 @@ _SCRIPT_TEMPLATE = Template("""\
 #SBATCH --mem=$mem
 #SBATCH --ntasks=$ntasks
 #SBATCH --time=$time
+#SBATCH --gres=$gres
 #SBATCH --output=/farm_out/%u/%x-%j-%N.out
 #SBATCH --error=/farm_out/%u/%x-%j-%N.err
 
@@ -47,6 +48,7 @@ class SlurmBackend(QueueBackend):
         parser.add_argument("-t", "--ntasks", type=int, default=1)
         parser.add_argument("-o", "--nodes", type=int, default=1)
         parser.add_argument("-T", "--time", type=str, default="1-00:00:00")
+        parser.add_argument("-g", "--gres", type=str, default="disk:1G")
 
     def validate(self, args: Namespace) -> None:
         if parse_time_to_seconds(args.time) > _MAX_TIME_SECONDS:
@@ -65,6 +67,7 @@ class SlurmBackend(QueueBackend):
             ntasks=args.ntasks,
             nodes=args.nodes,
             time=args.time,
+            gres=args.gres,
         )
         script_path = os.path.join(job_dir, f"job_{job_info.iteration:04d}.sh")
         with open(script_path, "w") as f:
@@ -93,6 +96,7 @@ class SlurmBackend(QueueBackend):
             ["-t", f"{C['C']}N. task{C['RE']}",     f"{C['C']}{args.ntasks}{C['RE']}"],
             ["-o", f"{C['C']}N. nodi{C['RE']}",     f"{C['C']}{args.nodes}{C['RE']}"],
             ["-T", f"{C['C']}Time limit{C['RE']}",  f"{C['C']}{args.time}{C['RE']}"],
+            ["-g", f"{C['C']}GRES{C['RE']}",         f"{C['C']}{args.gres}{C['RE']}"],
             [" ",  f"{C['B']}FLUKA bin{C['RE']}",   f"{C['B']}{fluka_path}{C['RE']}"],
             [" ",  f"{C['B']}FLUKA folder{C['RE']}", f"{C['B']}{fluka_folder}{C['RE']}"],
         ]
