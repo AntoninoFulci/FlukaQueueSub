@@ -29,6 +29,7 @@ def load_yaml_config(path: str, backends: dict[str, QueueBackend]) -> Namespace:
     parser.add_argument("--custom-exe", dest="custom_exe", default=None)
     parser.add_argument("--dry-run",    dest="dry_run",    action="store_true", default=False)
     parser.add_argument("--output-dir", dest="output_dir", default=None)
+    parser.add_argument("--nprim",      dest="nprim",      type=int, default=None)
     backend.add_args(parser)
 
     defaults = vars(parser.parse_args([]))

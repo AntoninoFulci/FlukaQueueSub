@@ -14,7 +14,7 @@ def detect_fluka_path() -> tuple[str, str]:
         raise SystemExit(1)
 
 
-def generate_input(base_name: str, iteration: int, work_dir: str) -> str:
+def generate_input(base_name: str, iteration: int, work_dir: str, nprim: int | None = None) -> str:
     seed = random.randint(1, int(9e7))
     new_randomiz = f"RANDOMIZ          1.{seed:>10d}\n"
 
@@ -27,6 +27,13 @@ def generate_input(base_name: str, iteration: int, work_dir: str) -> str:
                 break
         else:
             raise ValueError(f"No RANDOMIZ card found in {src!r}")
+        if nprim is not None:
+            for i, line in enumerate(data):
+                if line.startswith("START"):
+                    data[i] = f"START   {nprim:>10d}.0\n"
+                    break
+            else:
+                raise ValueError(f"No START card found in {src!r}")
         f.seek(0)
         f.writelines(data)
         f.truncate()
