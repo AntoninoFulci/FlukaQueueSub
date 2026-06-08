@@ -41,4 +41,5 @@ class TSBackend(QueueBackend):
 
     def set_priority_queue(self, args: Namespace, queue_name: str) -> None:
         # Task Spooler non ha concetto di coda/partizione; l'override viene ignorato.
-        pass
+        import logging as _logging
+        _logging.warning("TSBackend: benchmark_priority_queue ignorato (nessun concetto di coda).")

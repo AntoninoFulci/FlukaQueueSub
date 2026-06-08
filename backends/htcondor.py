@@ -111,4 +111,5 @@ class HTCondorBackend(QueueBackend):
 
     def set_priority_queue(self, args: Namespace, queue_name: str) -> None:
         # HTCondor usa 'universe', non una partizione/coda nominata; l'override viene ignorato.
-        pass
+        import logging as _logging
+        _logging.warning("HTCondorBackend: benchmark_priority_queue ignorato (universe != coda nominata).")
