@@ -32,3 +32,7 @@ class QueueBackend(ABC):
     @abstractmethod
     def table_rows(self, args: Namespace, fluka_path: str, fluka_folder: str) -> list[list[str]]:
         """Restituisce le righe specifiche del backend per la tabella di riepilogo."""
+
+    @abstractmethod
+    def set_priority_queue(self, args: Namespace, queue_name: str) -> None:
+        """Sovrascrive il campo queue/partition in args per la modalita' benchmark rapida."""

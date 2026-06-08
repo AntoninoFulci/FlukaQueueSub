@@ -43,12 +43,20 @@ cat ./*.err
 class SlurmBackend(QueueBackend):
 
     def add_args(self, parser: ArgumentParser) -> None:
-        parser.add_argument("-q", "--queue", type=str, default=_DEFAULT_QUEUE)
-        parser.add_argument("-m", "--mem", type=str, default="1500")
-        parser.add_argument("-t", "--ntasks", type=int, default=1)
-        parser.add_argument("-o", "--nodes", type=int, default=1)
-        parser.add_argument("-T", "--time", type=str, default="1-00:00:00")
-        parser.add_argument("-g", "--gres", type=str, default="disk:1G")
+        parser.add_argument("-q", "--queue", type=str, default=_DEFAULT_QUEUE,
+                            help=f"Partizione SLURM su cui inviare i job (default: {_DEFAULT_QUEUE})")
+        parser.add_argument("-m", "--mem", type=str, default="1500",
+                            help="Memoria richiesta per nodo in MB (default: 1500)")
+        parser.add_argument("-t", "--ntasks", type=int, default=1,
+                            help="Numero di task SLURM per job, corrisponde a --ntasks (default: 1)")
+        parser.add_argument("-o", "--nodes", type=int, default=1,
+                            help="Numero di nodi richiesti per job, corrisponde a --nodes (default: 1)")
+        parser.add_argument("-T", "--time", type=str, default="1-00:00:00",
+                            help="Limite di tempo massimo nel formato D-HH:MM:SS, max 4-00:00:00 "
+                                 "(default: 1-00:00:00)")
+        parser.add_argument("-g", "--gres", type=str, default="disk:1G",
+                            help="Risorse generiche SLURM (--gres), es. disk:2G o gpu:1 "
+                                 "(default: disk:1G)")
 
     def validate(self, args: Namespace) -> None:
         if parse_time_to_seconds(args.time) > _MAX_TIME_SECONDS:
@@ -100,3 +108,6 @@ class SlurmBackend(QueueBackend):
             [" ",  f"{C['B']}FLUKA bin{C['RE']}",   f"{C['B']}{fluka_path}{C['RE']}"],
             [" ",  f"{C['B']}FLUKA folder{C['RE']}", f"{C['B']}{fluka_folder}{C['RE']}"],
         ]
+
+    def set_priority_queue(self, args: Namespace, queue_name: str) -> None:
+        args.queue = queue_name

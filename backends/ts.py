@@ -38,3 +38,7 @@ class TSBackend(QueueBackend):
             [" ", f"{C['B']}FLUKA bin{C['RE']}",    f"{C['B']}{fluka_path}{C['RE']}"],
             [" ", f"{C['B']}FLUKA folder{C['RE']}", f"{C['B']}{fluka_folder}{C['RE']}"],
         ]
+
+    def set_priority_queue(self, args: Namespace, queue_name: str) -> None:
+        # Task Spooler non ha concetto di coda/partizione; l'override viene ignorato.
+        pass
