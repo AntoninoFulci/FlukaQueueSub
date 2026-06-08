@@ -94,3 +94,44 @@ def test_collect_returns_moved_and_deleted_counts(tmp_path):
     moved, deleted = collect_sim_dir(sim_dir, dry_run=False)
     assert moved == 3
     assert deleted == 2
+
+
+def test_collect_skips_if_root_files_already_nonempty(tmp_path, capsys):
+    sim_dir = make_sim_dir(tmp_path, "01a.Simulation_Lead", {
+        "job_0001": ["a.root"],
+    })
+    root_files_dir = sim_dir / "root_files"
+    root_files_dir.mkdir()
+    (root_files_dir / "existing.root").touch()
+
+    moved, deleted = collect_sim_dir(sim_dir, dry_run=False)
+
+    assert moved == 0
+    assert deleted == 0
+    assert (sim_dir / "job_0001").exists()
+    captured = capsys.readouterr()
+    assert "WARNING" in captured.err
+    assert "already non-empty" in captured.err
+
+
+def test_collect_proceeds_if_root_files_dir_is_empty(tmp_path):
+    sim_dir = make_sim_dir(tmp_path, "01a.Simulation_Lead", {
+        "job_0001": ["a.root"],
+    })
+    (sim_dir / "root_files").mkdir()
+
+    moved, deleted = collect_sim_dir(sim_dir, dry_run=False)
+
+    assert moved == 1
+    assert deleted == 1
+
+
+def test_collect_warns_on_job_dir_with_no_root_files(tmp_path, capsys):
+    sim_dir = make_sim_dir(tmp_path, "01a.Simulation_Lead", {
+        "job_0001": ["job_0001.sh", "job_0001.inp"],
+        "job_0002": ["a.root"],
+    })
+    collect_sim_dir(sim_dir, dry_run=False)
+    captured = capsys.readouterr()
+    assert "WARNING" in captured.err
+    assert "no .root files found" in captured.err
