@@ -37,6 +37,7 @@ def test_discover_ignores_files(tmp_path):
     (tmp_path / "01a.Simulation_Lead.inp").touch()
     result = discover_sim_dirs(tmp_path, "*Simulation*")
     assert len(result) == 1
+    assert result[0].is_dir()
 
 
 def test_discover_custom_pattern(tmp_path):
