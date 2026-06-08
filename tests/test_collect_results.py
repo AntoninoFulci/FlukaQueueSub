@@ -136,3 +136,26 @@ def test_collect_warns_on_job_dir_with_no_root_files(tmp_path, capsys):
     captured = capsys.readouterr()
     assert "WARNING" in captured.err
     assert "no .root files found" in captured.err
+
+
+def test_dry_run_makes_no_filesystem_changes(tmp_path):
+    sim_dir = make_sim_dir(tmp_path, "01a.Simulation_Lead", {
+        "job_0001": ["a.root"],
+        "job_0002": ["b.root"],
+    })
+    moved, deleted = collect_sim_dir(sim_dir, dry_run=True)
+
+    assert moved == 2
+    assert deleted == 2
+    assert not (sim_dir / "root_files").exists()
+    assert (sim_dir / "job_0001").exists()
+    assert (sim_dir / "job_0002").exists()
+
+
+def test_dry_run_prints_dry_run_prefix(tmp_path, capsys):
+    sim_dir = make_sim_dir(tmp_path, "01a.Simulation_Lead", {
+        "job_0001": ["a.root"],
+    })
+    collect_sim_dir(sim_dir, dry_run=True)
+    captured = capsys.readouterr()
+    assert "[DRY RUN]" in captured.out
