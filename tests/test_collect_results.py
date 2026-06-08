@@ -124,6 +124,7 @@ def test_collect_proceeds_if_root_files_dir_is_empty(tmp_path):
 
     assert moved == 1
     assert deleted == 1
+    assert (sim_dir / "root_files" / "a.root").exists()
 
 
 def test_collect_warns_on_job_dir_with_no_root_files(tmp_path, capsys):
