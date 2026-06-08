@@ -4,8 +4,9 @@ import logging
 import os
 import sys
 from argparse import ArgumentParser, Namespace, RawTextHelpFormatter
+from typing import TypedDict
 
-from backends.base import JobInfo
+from backends.base import JobInfo, QueueBackend
 from backends.htcondor import HTCondorBackend
 from backends.lsf import LSFBackend
 from backends.slurm import SlurmBackend
@@ -21,11 +22,70 @@ BACKENDS = {
     "ts":     TSBackend(),
 }
 
+class _BenchmarkParams(TypedDict):
+    njobs: int
+    nprim: int
+    use_priority_queue: bool
+
+
+_BENCHMARK_MODES: dict[str, _BenchmarkParams] = {
+    "quick":     {"njobs": 2,  "nprim": 100,  "use_priority_queue": True},
+    "extensive": {"njobs": 5,  "nprim": 1000, "use_priority_queue": False},
+}
+
+
+def _apply_benchmark_overrides(args: Namespace, mode: str, backend: QueueBackend) -> None:
+    if mode not in _BENCHMARK_MODES:
+        raise ValueError(
+            f"Modalita' benchmark sconosciuta: {mode!r}. Disponibili: {sorted(_BENCHMARK_MODES)}"
+        )
+    params = _BENCHMARK_MODES[mode]
+    args.njobs = params["njobs"]
+    args.nprim = params["nprim"]
+    if params["use_priority_queue"]:
+        queue_name = getattr(args, "benchmark_priority_queue", None)
+        if not queue_name:
+            raise ValueError(
+                "Campo 'benchmark_priority_queue' richiesto per benchmark quick"
+            )
+        backend.set_priority_queue(args, queue_name)
+
 
 def _build_parser() -> ArgumentParser:
     parser = ArgumentParser(
-        description="Lancia job FLUKA su diversi sistemi di code.",
+        description=(
+            "Lancia job FLUKA su diversi sistemi di code.\n"
+            "\n"
+            "Modalita' di utilizzo:\n"
+            "\n"
+            "  1) Subcomando diretto (CLI completo):\n"
+            "       python launch_jobs.py <BACKEND> -f sim.inp -n 10 [opzioni]\n"
+            "       python launch_jobs.py slurm -f sim.inp -n 5 -T 2-00:00:00\n"
+            "       python launch_jobs.py condor -f sim.inp -n 20 -m 2000\n"
+            "\n"
+            "  2) File di configurazione YAML (singolo lancio):\n"
+            "       python launch_jobs.py config.yaml\n"
+            "       python launch_jobs.py JobConfigs/test_slurm.yaml\n"
+            "\n"
+            "  3) Cartella di file YAML (lancia tutti in sequenza):\n"
+            "       python launch_jobs.py JobConfigs/\n"
+            "\n"
+            "Il file YAML deve contenere le stesse chiavi dei flag CLI.\n"
+            "Esempio minimo (slurm):\n"
+            "  backend: slurm\n"
+            "  input: /path/to/sim.inp\n"
+            "  njobs: 5\n"
+            "  nprim: 10000        # opzionale\n"
+            "  custom_exe: /path   # opzionale\n"
+        ),
         formatter_class=RawTextHelpFormatter,
+        epilog=(
+            "Per la lista delle opzioni specifiche di ogni backend:\n"
+            "  python launch_jobs.py slurm -h\n"
+            "  python launch_jobs.py lsf -h\n"
+            "  python launch_jobs.py condor -h\n"
+            "  python launch_jobs.py ts -h\n"
+        ),
     )
     subparsers = parser.add_subparsers(dest="backend", metavar="BACKEND")
     subparsers.required = True
@@ -33,18 +93,26 @@ def _build_parser() -> ArgumentParser:
     for name, backend in BACKENDS.items():
         sub = subparsers.add_parser(name, help=f"Invia job a {name.upper()}")
         sub.add_argument("-f", "--input",      type=str, required=True,
-                         help="File di input FLUKA (.inp)")
+                         help="Percorso al file di input FLUKA (deve terminare in .inp)")
         sub.add_argument("-n", "--njobs",      type=int, required=True,
-                         help="Numero di job da lanciare")
+                         help="Numero di job indipendenti da lanciare (uno per seed casuale)")
         sub.add_argument("-c", "--custom-exe", type=str, default=None,
                          dest="custom_exe",
-                         help="Percorso all'eseguibile custom")
+                         help="Percorso all'eseguibile FLUKA custom (passato come -e a rfluka); "
+                              "se omesso usa l'eseguibile di default di FLUKA")
         sub.add_argument("-w", "--dry-run",    action="store_true",
                          dest="dry_run",
-                         help="Dry run: mostra i comandi senza inviare i job")
+                         help="Modalita' dry-run: costruisce gli script e mostra i comandi "
+                              "senza inviare alcun job al sistema di code")
         sub.add_argument("-d", "--output-dir", type=str, default=None,
                          dest="output_dir",
-                         help="Directory di output (default: nome del file input)")
+                         help="Directory radice dove creare le sottocartelle dei job "
+                              "(default: nome del file di input senza estensione)")
+        sub.add_argument("-N", "--nprim", type=int, default=None,
+                         dest="nprim",
+                         help="Numero di particelle primarie per job: sovrascrive la card "
+                              "START nel file .inp rispettando il formato colonnare FLUKA; "
+                              "se omesso il valore nel .inp rimane invariato")
         backend.add_args(sub)
 
     return parser
@@ -57,7 +125,7 @@ def _execute_jobs(args: Namespace, fluka_path: str) -> None:
 
     for i in range(1, args.njobs + 1):
         job_dir = filesystem.setup_job_dir(output_dir, i, args.input)
-        new_input = fluka.generate_input(base_name, i, job_dir)
+        new_input = fluka.generate_input(base_name, i, job_dir, nprim=args.nprim)
         job_info = JobInfo(new_input, i, fluka_path, args.custom_exe)
         script_path = backend.generate_script(job_info, job_dir, args)
         try:
@@ -88,6 +156,7 @@ def run_from_args(args: Namespace) -> None:
         ["-n", f"{C['R']}Numero job{C['RE']}",  f"{C['M']}{args.njobs}{C['RE']}"],
         ["-c", f"{C['M']}Custom exe{C['RE']}",  f"{C['M']}{args.custom_exe or 'None'}{C['RE']}"],
         ["-d", f"{C['B']}Output dir{C['RE']}",  f"{C['B']}{args.output_dir or 'Default'}{C['RE']}"],
+        ["-N", f"{C['C']}N. primarie{C['RE']}", f"{C['C']}{args.nprim if args.nprim is not None else 'dal file'}{C['RE']}"],
         ["-w", f"{C['Y']}Dry run{C['RE']}",     f"{C['Y']}{args.dry_run}{C['RE']}"],
     ]
     display.print_table(common_rows + backend.table_rows(args, fluka_path, fluka_folder))
