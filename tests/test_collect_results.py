@@ -1,4 +1,5 @@
 import subprocess
+import sys
 import pytest
 from pathlib import Path
 
@@ -167,7 +168,7 @@ def test_main_processes_all_sim_dirs(tmp_path):
     (tmp_path / "configs").mkdir()
 
     result = subprocess.run(
-        ["python", str(SCRIPT)],
+        [sys.executable, str(SCRIPT)],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -180,7 +181,7 @@ def test_main_processes_all_sim_dirs(tmp_path):
 
 def test_main_exits_1_when_no_sim_dirs_found(tmp_path):
     result = subprocess.run(
-        ["python", str(SCRIPT)],
+        [sys.executable, str(SCRIPT)],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -192,7 +193,7 @@ def test_main_exits_1_when_no_sim_dirs_found(tmp_path):
 def test_main_dry_run_flag(tmp_path):
     make_sim_dir(tmp_path, "01a.Simulation_Lead", {"job_0001": ["a.root"]})
     result = subprocess.run(
-        ["python", str(SCRIPT), "--dry-run"],
+        [sys.executable, str(SCRIPT), "--dry-run"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -205,7 +206,7 @@ def test_main_dry_run_flag(tmp_path):
 def test_main_custom_pattern(tmp_path):
     make_sim_dir(tmp_path, "MyRun_Lead", {"job_0001": ["a.root"]})
     result = subprocess.run(
-        ["python", str(SCRIPT), "--pattern", "MyRun*"],
+        [sys.executable, str(SCRIPT), "--pattern", "MyRun*"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
