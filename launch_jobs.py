@@ -70,6 +70,14 @@ def _build_parser() -> ArgumentParser:
             "  3) Cartella di file YAML (lancia tutti in sequenza):\n"
             "       python launch_jobs.py JobConfigs/\n"
             "\n"
+            "  4) Modalita' benchmark (profili predefiniti):\n"
+            "       python launch_jobs.py benchmark quick    config.yaml\n"
+            "       python launch_jobs.py benchmark quick    JobConfigs/\n"
+            "       python launch_jobs.py benchmark extensive config.yaml\n"
+            "\n"
+            "     quick:     2 job, 100 particelle, coda da benchmark_priority_queue\n"
+            "     extensive: 5 job, 1000 particelle, coda invariata dal config\n"
+            "\n"
             "Il file YAML deve contenere le stesse chiavi dei flag CLI.\n"
             "Esempio minimo (slurm):\n"
             "  backend: slurm\n"
@@ -77,6 +85,7 @@ def _build_parser() -> ArgumentParser:
             "  njobs: 5\n"
             "  nprim: 10000        # opzionale\n"
             "  custom_exe: /path   # opzionale\n"
+            "  benchmark_priority_queue: priority  # opzionale, richiesto per benchmark quick\n"
         ),
         formatter_class=RawTextHelpFormatter,
         epilog=(
