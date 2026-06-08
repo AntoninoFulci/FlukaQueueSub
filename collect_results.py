@@ -36,7 +36,7 @@ def collect_sim_dir(sim_dir: Path, dry_run: bool) -> tuple[int, int]:
 
     root_files_dir.mkdir(exist_ok=True)
     for f in root_files:
-        shutil.move(str(f), root_files_dir / f.name)
+        shutil.move(f, root_files_dir / f.name)
     for job_dir in job_dirs:
         shutil.rmtree(job_dir)
 
