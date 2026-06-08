@@ -218,7 +218,125 @@ def run_folder(folder: str) -> None:
         sys.exit(1)
 
 
+def _has_start_card(inp_path: str) -> bool:
+    """Return True if the FLUKA input file contains a START card."""
+    with open(inp_path) as f:
+        return any(line.startswith("START") for line in f)
+
+
+def run_benchmark(mode: str, target: str) -> None:
+    C = display.COLORS
+
+    if os.path.isdir(target):
+        yaml_files = sorted(f for f in os.listdir(target) if f.endswith((".yaml", ".yml")))
+        yaml_paths = [os.path.join(target, f) for f in yaml_files]
+
+        if not yaml_paths:
+            logging.warning("Nessun file YAML trovato in %r", target)
+            return
+
+        configs = []
+        for path in yaml_paths:
+            try:
+                cfg = config.load_yaml_config(path, BACKENDS)
+                BACKENDS[cfg.backend].validate(cfg)
+                configs.append((path, cfg))
+            except Exception as e:
+                logging.error("File %r non valido: %s", path, e)
+
+        if not configs:
+            logging.error("Nessuna configurazione valida trovata.")
+            return
+
+        for path, cfg in configs:
+            try:
+                _apply_benchmark_overrides(cfg, mode, BACKENDS[cfg.backend])
+            except ValueError as e:
+                logging.error(str(e))
+                sys.exit(1)
+
+        params = _BENCHMARK_MODES[mode]
+        print(
+            f"\n[BENCHMARK MODE: {mode} — "
+            f"njobs={params['njobs']}, nprim={params['nprim']}"
+            + (", priority_queue override active" if params["use_priority_queue"] else "")
+            + "]"
+        )
+        rows = [["File", "Backend", "N. job (benchmark)"]]
+        for path, cfg in configs:
+            rows.append([
+                os.path.basename(path),
+                f"{C['M']}{cfg.backend}{C['RE']}",
+                f"{C['M']}{cfg.njobs}{C['RE']}",
+            ])
+        display.print_table(rows)
+
+        if not display.confirm(f"Procedere con {len(configs)} lanci benchmark? (yes/no): "):
+            logging.info("Lancio annullato.")
+            return
+
+        fluka_path, _ = fluka.detect_fluka_path()
+        failures = 0
+        for path, cfg in configs:
+            try:
+                logging.info("Avvio benchmark: %s", os.path.basename(path))
+                if cfg.nprim is not None and not _has_start_card(cfg.input):
+                    logging.warning(
+                        "Nessuna card START in %r — nprim ignorato per questo lancio.", cfg.input
+                    )
+                    cfg.nprim = None
+                _execute_jobs(cfg, fluka_path)
+            except Exception as e:
+                logging.error("Errore in %r: %s", path, e)
+                failures += 1
+        if failures:
+            sys.exit(1)
+
+    else:
+        try:
+            cfg = config.load_yaml_config(target, BACKENDS)
+        except (FileNotFoundError, ValueError) as e:
+            logging.error(str(e))
+            sys.exit(1)
+
+        backend = BACKENDS[cfg.backend]
+        try:
+            backend.validate(cfg)
+            _apply_benchmark_overrides(cfg, mode, backend)
+        except ValueError as e:
+            logging.error(str(e))
+            sys.exit(1)
+
+        if cfg.nprim is not None and not _has_start_card(cfg.input):
+            logging.warning(
+                "Nessuna card START in %r — nprim ignorato per questo lancio.", cfg.input
+            )
+            cfg.nprim = None
+
+        params = _BENCHMARK_MODES[mode]
+        print(
+            f"\n[BENCHMARK MODE: {mode} — "
+            f"njobs={params['njobs']}, nprim={params['nprim']}"
+            + (", priority_queue override active" if params["use_priority_queue"] else "")
+            + "]"
+        )
+        if not display.confirm("Procedere con lancio benchmark? (yes/no): "):
+            logging.info("Lancio annullato.")
+            return
+        fluka_path, _ = fluka.detect_fluka_path()
+        _execute_jobs(cfg, fluka_path)
+
+
 def main() -> None:
+    if len(sys.argv) > 1 and sys.argv[1] == "benchmark":
+        if len(sys.argv) != 4:
+            print("Utilizzo: launch_jobs.py benchmark <quick|extensive> <config.yaml|cartella/>")
+            sys.exit(1)
+        if sys.argv[2] not in _BENCHMARK_MODES:
+            print(f"Modalita' sconosciuta: {sys.argv[2]!r}. Disponibili: {sorted(_BENCHMARK_MODES)}")
+            sys.exit(1)
+        run_benchmark(sys.argv[2], sys.argv[3])
+        return
     if len(sys.argv) > 1:
         first_arg = sys.argv[1]
         if first_arg.endswith((".yaml", ".yml")) and not os.path.isdir(first_arg):
