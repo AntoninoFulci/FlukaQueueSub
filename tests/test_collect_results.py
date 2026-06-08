@@ -159,3 +159,56 @@ def test_dry_run_prints_dry_run_prefix(tmp_path, capsys):
     collect_sim_dir(sim_dir, dry_run=True)
     captured = capsys.readouterr()
     assert "[DRY RUN]" in captured.out
+
+
+def test_main_processes_all_sim_dirs(tmp_path):
+    make_sim_dir(tmp_path, "01a.Simulation_Lead", {"job_0001": ["lead_0001.root"]})
+    make_sim_dir(tmp_path, "01a.Simulation_Mercury", {"job_0001": ["mercury_0001.root"]})
+    (tmp_path / "configs").mkdir()
+
+    result = subprocess.run(
+        ["python", str(SCRIPT)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert (tmp_path / "01a.Simulation_Lead" / "root_files" / "lead_0001.root").exists()
+    assert (tmp_path / "01a.Simulation_Mercury" / "root_files" / "mercury_0001.root").exists()
+    assert (tmp_path / "configs").exists()
+
+
+def test_main_exits_1_when_no_sim_dirs_found(tmp_path):
+    result = subprocess.run(
+        ["python", str(SCRIPT)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "no directories matching" in result.stderr
+
+
+def test_main_dry_run_flag(tmp_path):
+    make_sim_dir(tmp_path, "01a.Simulation_Lead", {"job_0001": ["a.root"]})
+    result = subprocess.run(
+        ["python", str(SCRIPT), "--dry-run"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "[DRY RUN]" in result.stdout
+    assert not (tmp_path / "01a.Simulation_Lead" / "root_files").exists()
+
+
+def test_main_custom_pattern(tmp_path):
+    make_sim_dir(tmp_path, "MyRun_Lead", {"job_0001": ["a.root"]})
+    result = subprocess.run(
+        ["python", str(SCRIPT), "--pattern", "MyRun*"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert (tmp_path / "MyRun_Lead" / "root_files" / "a.root").exists()
