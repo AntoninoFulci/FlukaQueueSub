@@ -26,17 +26,23 @@ _SCRIPT_TEMPLATE = Template("""\
 
 cd /scratch/slurm/$$SLURM_JOB_ID
 
+# copia il .err di FLUKA ogni 30 secondi
+while true; do
+    cp fluka_*/*.err /farm_out/$$USER/$$SLURM_JOB_NAME-$$SLURM_JOB_ID-live.err 2>/dev/null
+    sleep 30
+done &
+WATCHER_PID=$$!
+
 echo
 echo Launching FLUKA run...
 $fluka_command $job_dir/$input
+
+kill $$WATCHER_PID 2>/dev/null
 
 echo
 echo Job completed. Transferring files to $job_dir
 
 mv ./*.root $job_dir
-
-echo
-cat ./*.err
 """)
 
 
