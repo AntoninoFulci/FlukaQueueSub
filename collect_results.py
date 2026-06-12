@@ -37,7 +37,7 @@ def scan_all(cwd: Path) -> MovePlan:
     plan = MovePlan()
     for parent_dir in sorted(p for p in cwd.iterdir() if p.is_dir()):
         root_files_dir = parent_dir / "root_files"
-        if root_files_dir.exists() and any(root_files_dir.iterdir()):
+        if root_files_dir.exists() and next(root_files_dir.iterdir(), None) is not None:
             plan.skipped_parents.append(parent_dir)
             continue
         job_dirs = sorted(
@@ -61,11 +61,12 @@ def scan_all(cwd: Path) -> MovePlan:
 
 
 def _format_size(size: int) -> str:
-    for unit in ("B", "KB", "MB", "GB"):
-        if size < 1024:
-            return f"{size:.0f} {unit}"
-        size /= 1024
-    return f"{size:.1f} TB"
+    s = float(size)
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if s < 1024 or unit == "TB":
+            return f"{s:.0f} {unit}"
+        s /= 1024
+    return f"{s:.0f} B"  # unreachable
 
 
 def display_plan(plan: MovePlan, console: Console | None = None) -> None:
@@ -92,19 +93,15 @@ def display_plan(plan: MovePlan, console: Console | None = None) -> None:
     colors = ["white", "bright_white"]
     color_map = {name: colors[i % 2] for i, name in enumerate(parent_names)}
 
-    rows: list[tuple[str, FileMove | EmptyJob]] = []
-    for m in plan.moves:
-        rows.append(("move", m))
-    for e in plan.empty_jobs:
-        rows.append(("empty", e))
+    rows: list[FileMove | EmptyJob] = [*plan.moves, *plan.empty_jobs]
     rows.sort(key=lambda r: (
-        r[1].parent_dir.name,
-        r[1].job_dir.name,
-        r[1].source.name if r[0] == "move" else "",
+        r.parent_dir.name,
+        r.job_dir.name,
+        r.source.name if isinstance(r, FileMove) else "",
     ))
 
-    for kind, item in rows:
-        if kind == "move":
+    for item in rows:
+        if isinstance(item, FileMove):
             table.add_row(
                 item.parent_dir.name,
                 item.job_dir.name,
@@ -147,16 +144,20 @@ def execute_plan(plan: MovePlan) -> int:
             exit_code = 1
             continue
 
-        moved: set[Path] = set()
+        # track per-job success: only delete job dir if ALL its files moved
+        job_failed: set[Path] = set()
+        n_moved = 0
         for m in moves:
             try:
-                shutil.move(str(m.source), m.dest)
-                moved.add(m.job_dir)
+                shutil.move(m.source, m.dest)
+                n_moved += 1
             except OSError as e:
                 print(f"ERROR: {parent_dir.name}/{m.source.name}: {e}", file=sys.stderr)
+                job_failed.add(m.job_dir)
                 exit_code = 1
 
-        job_dirs_to_delete = {m.job_dir for m in moves if m.job_dir in moved}
+        job_dirs_all = {m.job_dir for m in moves}
+        job_dirs_to_delete = job_dirs_all - job_failed
         for job_dir in job_dirs_to_delete:
             try:
                 shutil.rmtree(job_dir)
@@ -164,7 +165,6 @@ def execute_plan(plan: MovePlan) -> int:
                 print(f"ERROR: {parent_dir.name}/{job_dir.name}: {e}", file=sys.stderr)
                 exit_code = 1
 
-        n_moved = len([m for m in moves if m.job_dir in moved])
         print(f"{parent_dir.name}: moved {n_moved} files, deleted {len(job_dirs_to_delete)} job dirs")
     return exit_code
 
@@ -174,7 +174,7 @@ def main() -> int:
     plan = scan_all(cwd)
 
     if not plan.moves and not plan.empty_jobs and not plan.skipped_parents:
-        print("ERROR: no job_* directories found in any subdirectory", file=sys.stderr)
+        print("ERROR: no job_* directories found under any subdirectory", file=sys.stderr)
         return 1
 
     display_plan(plan)
