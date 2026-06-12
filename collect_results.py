@@ -124,8 +124,8 @@ def display_plan(plan: MovePlan, console: Console | None = None) -> None:
             )
 
     console.print(table)
-    n_parents = len({m.parent_dir for m in plan.moves})
-    n_jobs = len({m.job_dir for m in plan.moves})
+    n_parents = len({m.parent_dir for m in plan.moves} | {e.parent_dir for e in plan.empty_jobs})
+    n_jobs = len({m.job_dir for m in plan.moves} | {e.job_dir for e in plan.empty_jobs})
     console.print(
         f"[bold]{len(plan.moves)} files[/bold] across "
         f"{n_jobs} job dirs in {n_parents} parent dirs"
@@ -139,18 +139,33 @@ def execute_plan(plan: MovePlan) -> int:
 
     exit_code = 0
     for parent_dir, moves in sorted(parents.items()):
+        dest_dir = parent_dir / "root_files"
         try:
-            dest_dir = parent_dir / "root_files"
             dest_dir.mkdir(exist_ok=True)
-            for m in moves:
-                shutil.move(str(m.source), m.dest)
-            job_dirs = {m.job_dir for m in moves}
-            for job_dir in job_dirs:
-                shutil.rmtree(job_dir)
-            print(f"{parent_dir.name}: moved {len(moves)} files, deleted {len(job_dirs)} job dirs")
         except OSError as e:
-            print(f"ERROR: {parent_dir.name}: {e}", file=sys.stderr)
+            print(f"ERROR: {parent_dir.name}: cannot create root_files/: {e}", file=sys.stderr)
             exit_code = 1
+            continue
+
+        moved: set[Path] = set()
+        for m in moves:
+            try:
+                shutil.move(str(m.source), m.dest)
+                moved.add(m.job_dir)
+            except OSError as e:
+                print(f"ERROR: {parent_dir.name}/{m.source.name}: {e}", file=sys.stderr)
+                exit_code = 1
+
+        job_dirs_to_delete = {m.job_dir for m in moves if m.job_dir in moved}
+        for job_dir in job_dirs_to_delete:
+            try:
+                shutil.rmtree(job_dir)
+            except OSError as e:
+                print(f"ERROR: {parent_dir.name}/{job_dir.name}: {e}", file=sys.stderr)
+                exit_code = 1
+
+        n_moved = len([m for m in moves if m.job_dir in moved])
+        print(f"{parent_dir.name}: moved {n_moved} files, deleted {len(job_dirs_to_delete)} job dirs")
     return exit_code
 
 
