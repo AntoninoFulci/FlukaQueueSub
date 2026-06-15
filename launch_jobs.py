@@ -139,11 +139,26 @@ def _execute_jobs(args: Namespace, fluka_path: str) -> None:
 
     used_seeds = fluka.scan_existing_seeds(Path(output_dir))
 
+    # Fase 1: genera tutti gli input (un seed unico per job)
+    prepared: list[tuple[int, str, JobInfo]] = []
     for i in range(1, args.njobs + 1):
         job_dir = filesystem.setup_job_dir(output_dir, i, args.input)
         seed = fluka.allocate_seed(used_seeds)
         new_input = fluka.generate_input(base_name, i, job_dir, nprim=args.nprim, seed=seed)
         job_info = JobInfo(new_input, i, fluka_path, args.custom_exe)
+        prepared.append((i, job_dir, job_info))
+
+    # Fase 2: verifica seed unici su disco prima di inviare alcun job
+    duplicates = fluka.find_duplicate_seeds(Path(output_dir))
+    if duplicates:
+        for seed, files in sorted(duplicates.items()):
+            shared = ", ".join(f.parent.name for f in files)
+            logging.error("Seed duplicato %d condiviso da: %s", seed, shared)
+        logging.error("Invio annullato: seed RANDOMIZ duplicati rilevati.")
+        sys.exit(1)
+
+    # Fase 3: invia i job
+    for i, job_dir, job_info in prepared:
         script_path = backend.generate_script(job_info, job_dir, args)
         try:
             result = backend.submit(script_path, job_info, args)

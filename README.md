@@ -206,10 +206,16 @@ file are flagged.
 
 ## Checking seeds
 
-Each job is made statistically independent by a distinct `RANDOMIZ` seed.
-`launch_jobs.py` guarantees uniqueness at generation — including across re-launches
-into the same output directory. To audit an existing set of runs (older batches,
-manually edited inputs, overlapping launches):
+Each job is made statistically independent by a distinct `RANDOMIZ` seed. Seed
+uniqueness is enforced at two points:
+
+- **During launch** — `launch_jobs.py` allocates a unique seed per job (including
+  across re-launches into the same output directory), then re-scans the generated
+  inputs on disk and **aborts before submitting anything** if any duplicate is found.
+- **After launch** — `check_seeds.py` audits an existing set of runs on demand.
+
+To audit existing runs (older batches, manually edited inputs, overlapping
+launches):
 
 ```sh
 python check_seeds.py
