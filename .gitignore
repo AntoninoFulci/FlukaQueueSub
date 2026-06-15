@@ -8,3 +8,4 @@ tests/
 docs/
 .mypy_cache/
 JobConfigs/
+*.egg-info/
