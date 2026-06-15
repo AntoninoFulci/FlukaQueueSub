@@ -1,7 +1,30 @@
 import logging
 import os
 import random
+import re
 import subprocess
+from pathlib import Path
+
+
+def parse_randomiz(inp_path: Path) -> int | None:
+    """Return the RANDOMIZ seed (WHAT(2)) from a FLUKA input, or None.
+
+    Tolerant of fixed- and free-format spacing. The seed is the second
+    numeric token on the RANDOMIZ line.
+    """
+    try:
+        lines = Path(inp_path).read_text().splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        if "RANDOMIZ" not in line:
+            continue
+        rest = line.split("RANDOMIZ", 1)[1]
+        numbers = re.findall(r"[-+]?\d*\.?\d+", rest)
+        if len(numbers) < 2:
+            return None
+        return int(float(numbers[1]))
+    return None
 
 
 def detect_fluka_path() -> tuple[str, str]:
