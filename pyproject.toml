@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flukaqueuesub"
+version = "0.1.0"
+description = "Multi-backend FLUKA job submission (SLURM/LSF/HTCondor/Task Spooler)"
+requires-python = ">=3.10"
+dependencies = ["pyyaml", "colorama", "tabulate", "rich"]
+
+[tool.setuptools]
+py-modules = ["launch_jobs", "collect_results", "check_seeds"]
+packages = ["core", "backends"]
