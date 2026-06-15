@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 from argparse import ArgumentParser, Namespace, RawTextHelpFormatter
+from pathlib import Path
 from typing import TypedDict
 
 from backends.base import JobInfo, QueueBackend
@@ -136,9 +137,12 @@ def _execute_jobs(args: Namespace, fluka_path: str) -> None:
     base_name = os.path.splitext(os.path.basename(args.input))[0]
     output_dir = filesystem.setup_output_dir(base_name, args.output_dir)
 
+    used_seeds = fluka.scan_existing_seeds(Path(output_dir))
+
     for i in range(1, args.njobs + 1):
         job_dir = filesystem.setup_job_dir(output_dir, i, args.input)
-        new_input = fluka.generate_input(base_name, i, job_dir, nprim=args.nprim)
+        seed = fluka.allocate_seed(used_seeds)
+        new_input = fluka.generate_input(base_name, i, job_dir, nprim=args.nprim, seed=seed)
         job_info = JobInfo(new_input, i, fluka_path, args.custom_exe)
         script_path = backend.generate_script(job_info, job_dir, args)
         try:
