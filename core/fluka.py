@@ -27,6 +27,15 @@ def parse_randomiz(inp_path: Path) -> int | None:
     return None
 
 
+def allocate_seed(used: set[int]) -> int:
+    """Draw a seed in [1, 9e7] not already in `used`; record and return it."""
+    while True:
+        seed = random.randint(1, int(9e7))
+        if seed not in used:
+            used.add(seed)
+            return seed
+
+
 def detect_fluka_path() -> tuple[str, str]:
     try:
         bin_path = subprocess.check_output(["fluka-config", "--bin"]).decode().strip()
