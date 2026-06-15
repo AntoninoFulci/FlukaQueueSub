@@ -36,6 +36,22 @@ def allocate_seed(used: set[int]) -> int:
             return seed
 
 
+def scan_existing_seeds(output_dir: Path) -> set[int]:
+    """Return seeds already used by job_*/ inputs under output_dir."""
+    root = Path(output_dir)
+    seeds: set[int] = set()
+    if not root.is_dir():
+        return seeds
+    for job_dir in root.glob("job_*"):
+        if not job_dir.is_dir():
+            continue
+        for inp in job_dir.glob("*.inp"):
+            seed = parse_randomiz(inp)
+            if seed is not None:
+                seeds.add(seed)
+    return seeds
+
+
 def detect_fluka_path() -> tuple[str, str]:
     try:
         bin_path = subprocess.check_output(["fluka-config", "--bin"]).decode().strip()
