@@ -38,18 +38,28 @@ def allocate_seed(used: set[int]) -> int:
 
 def scan_existing_seeds(output_dir: Path) -> set[int]:
     """Return seeds already used by job_*/ inputs under output_dir."""
+    return set(_seed_map(Path(output_dir)))
+
+
+def _seed_map(output_dir: Path) -> dict[int, list[Path]]:
+    """Map each RANDOMIZ seed to the job_*/ inputs using it, under output_dir."""
     root = Path(output_dir)
-    seeds: set[int] = set()
+    seeds: dict[int, list[Path]] = {}
     if not root.is_dir():
         return seeds
-    for job_dir in root.glob("job_*"):
+    for job_dir in sorted(root.glob("job_*")):
         if not job_dir.is_dir():
             continue
-        for inp in job_dir.glob("*.inp"):
+        for inp in sorted(job_dir.glob("*.inp")):
             seed = parse_randomiz(inp)
             if seed is not None:
-                seeds.add(seed)
+                seeds.setdefault(seed, []).append(inp)
     return seeds
+
+
+def find_duplicate_seeds(output_dir: Path) -> dict[int, list[Path]]:
+    """Return only the seeds shared by more than one job_*/ input."""
+    return {s: files for s, files in _seed_map(output_dir).items() if len(files) > 1}
 
 
 def detect_fluka_path() -> tuple[str, str]:
