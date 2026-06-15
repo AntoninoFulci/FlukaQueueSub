@@ -128,6 +128,10 @@ def _build_parser() -> ArgumentParser:
 
 
 def _execute_jobs(args: Namespace, fluka_path: str) -> None:
+    if args.custom_exe is not None and not os.path.isfile(args.custom_exe):
+        logging.error("Custom exe non trovato: %s", args.custom_exe)
+        sys.exit(1)
+
     backend = BACKENDS[args.backend]
     base_name = os.path.splitext(os.path.basename(args.input))[0]
     output_dir = filesystem.setup_output_dir(base_name, args.output_dir)
