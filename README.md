@@ -1,139 +1,220 @@
-## Fluka Queue Submission Scripts
+# FLUKA Queue Submission
 
-This repository contains scripts to launch FLUKA jobs using different queue systems: SLURM, LSF, HTCondor, and Task Spooler (TS).
+Launch many independent FLUKA jobs across different batch systems — **SLURM**, **LSF**,
+**HTCondor**, and **Task Spooler (TS)** — from a single unified CLI. Each job gets a
+distinct random seed, so the runs are statistically independent and safe to combine.
 
 <p align="center">
     <img src="assets/output.png"/>
 </p>
 
-## Scripts
+## Tools
 
-1. `scripts/launch_jobs_slurm.py`
-   - Launch FLUKA jobs on a SLURM cluster.
-2. `scripts/launch_jobs_lsf.py`
-   - Launch FLUKA jobs on an LSF cluster.
-3. `scripts/launch_jobs_htcondor.py`
-   - Launch FLUKA jobs on an HTCondor pool.
-4. `scripts/launch_jobs_ts.py`
-   - Launch FLUKA jobs using Task Spooler (TS) on a single node.
+| Script | Purpose |
+|--------|---------|
+| `launch_jobs.py`    | Generate per-job inputs (unique seeds) and submit them to a backend. |
+| `collect_results.py`| Gather each job's `.root` output into a `root_files/` directory. |
+| `check_seeds.py`    | Audit job directories for duplicate `RANDOMIZ` seeds. |
 
 ## Prerequisites
 
-- Python 3.x
-- FLUKA installed and configured (available via `fluka-config`)
-- Queue system client tools available on `PATH`:
-  - `sbatch` for SLURM
-  - `bsub` for LSF
-  - `condor_submit` and `htcondor` Python bindings for HTCondor
-  - `ts` for Task Spooler
-- Required Python packages: `argparse`, `os`, `random`, `subprocess`, `logging`, `colorama`, `tabulate`, `string`, `htcondor` (for HTCondor script)
+- Python 3.10+ (uses `X | None` type syntax).
+- FLUKA installed and configured — `fluka-config` must be on `PATH` (used to locate
+  `rfluka` and the FLUKA data folder).
+- The client tool for your backend on `PATH`:
+  - `sbatch` — SLURM
+  - `bsub` — LSF
+  - `condor_submit` + the `htcondor` Python bindings — HTCondor
+  - `ts` — Task Spooler
+- Your FLUKA input file must contain a `RANDOMIZ` card — the launcher rewrites its
+  seed per job. (A `START` card is required only if you override the primary count
+  with `-N`.)
 
 ## Installation
 
-1. Clone the repository:
+```sh
+git clone <repository_url>
+cd FlukaQueueSub
+python -m venv .venv && source .venv/bin/activate   # optional
+pip install -r requirements.txt
+```
 
-   ```sh
-   git clone <repository_url>
-   cd <repository_directory>
-   ```
-2. Install the required Python packages (preferably in a virtual environment):
-
-   ```sh
-   pip install colorama tabulate htcondor
-   ```
-3. Make the launcher scripts executable:
-
-   ```sh
-   chmod +x scripts/launch_jobs_slurm.py
-   chmod +x scripts/launch_jobs_lsf.py
-   chmod +x scripts/launch_jobs_htcondor.py
-   chmod +x scripts/launch_jobs_ts.py
-   ```
+`requirements.txt` installs `pyyaml`, `colorama`, `tabulate`, and `rich`. The
+HTCondor Python bindings (`htcondor`) are only needed for the `condor` backend and
+are typically provided by the cluster environment.
 
 ## Usage
 
-In all examples below, replace `input.inp` with your FLUKA input file and adjust parameters as needed.
+`launch_jobs.py` supports four invocation modes.
 
-### SLURM queue
-
-To launch jobs using the SLURM queue, use the `scripts/launch_jobs_slurm.py` script:
+### 1. Direct subcommand (full CLI)
 
 ```sh
-./scripts/launch_jobs_slurm.py -f input.inp -n 10 -c custom_exe -q queue -m 1500 -t 1 -o 1 -T 1-00:00:00
+python launch_jobs.py <BACKEND> -f sim.inp -n 10 [options]
 ```
 
-### LSF queue
-
-To launch jobs using the LSF queue, use the `scripts/launch_jobs_lsf.py` script:
+`<BACKEND>` is one of `slurm`, `lsf`, `condor`, `ts`. Examples:
 
 ```sh
-./scripts/launch_jobs_lsf.py -f input.inp -n 10 -c custom_exe -q queue -m 1500 -t 1 -T 1-00:00:00
+python launch_jobs.py slurm  -f sim.inp -n 5  -T 2-00:00:00
+python launch_jobs.py condor -f sim.inp -n 20 -m 2000
+python launch_jobs.py ts     -f sim.inp -n 4
 ```
 
-### HTCondor queue
-
-To launch jobs using the HTCondor queue, use the `scripts/launch_jobs_htcondor.py` script:
+Per-backend options:
 
 ```sh
-./scripts/launch_jobs_htcondor.py -f input.inp -n 10 -c custom_exe -q vanilla -m 1500 -t 1 -o 100000 -T 86400
+python launch_jobs.py slurm  -h
+python launch_jobs.py condor -h
 ```
 
-### Task Spooler (TS)
-
-To launch jobs using Task Spooler on a single node, use the `scripts/launch_jobs_ts.py` script:
+### 2. Single YAML config
 
 ```sh
-./scripts/launch_jobs_ts.py -f input.inp -n 10 -c custom_exe -d output_dir
+python launch_jobs.py config.yaml
+python launch_jobs.py JobConfigs/test_slurm.yaml
 ```
 
-### Dry run
-
-To perform a dry run without submitting jobs, add the `-w` or `--dry-run` flag:
+### 3. Folder of YAML configs (launched in sequence)
 
 ```sh
-./scripts/launch_jobs_slurm.py -f input.inp -n 10 -c custom_exe -q queue -m 1500 -t 1 -o 1 -T 1-00:00:00 -w
-./scripts/launch_jobs_lsf.py   -f input.inp -n 10 -c custom_exe -q queue -m 1500 -t 1 -T 1-00:00:00 -w
-./scripts/launch_jobs_htcondor.py -f input.inp -n 10 -c custom_exe -q vanilla -m 1500 -t 1 -o 100000 -T 86400 -w
-./scripts/launch_jobs_ts.py    -f input.inp -n 10 -c custom_exe -d output_dir -w
+python launch_jobs.py JobConfigs/
 ```
 
-### Common parameters
+### 4. Benchmark mode (predefined profiles)
 
-- `-f` / `--input`: Input file for the FLUKA job (must end with `.inp`).
-- `-n` / `--njobs`: Number of jobs to launch.
-- `-c` / `--custom_exe`: Custom FLUKA executable to use (`rfluka` is auto-detected via `fluka-config` if omitted or set to `"None"`).
-- `-q` / `--queue`: Queue/partition to submit the jobs to (where applicable).
-- `-m` / `--mem`: Memory required for each job.
-- `-t` / `--ntasks` / `--ncpu`: Number of tasks/CPUs to use (name depends on the script).
-- `-T` / `--time`: Time limit for the job (format and meaning depend on the queue system).
-- `-d` / `--output-dir`: Output directory for job files.
-- `-w` / `--dry-run`: Perform a dry run without submitting jobs.
+```sh
+python launch_jobs.py benchmark quick     config.yaml
+python launch_jobs.py benchmark extensive JobConfigs/
+```
 
-### Output layout
+- `quick` — 2 jobs, 100 primaries, submitted to the `benchmark_priority_queue` from
+  the config (required for this profile).
+- `extensive` — 5 jobs, 1000 primaries, queue unchanged from the config.
 
-After the simulations end, the output files will be located in the specified output directory (or a default directory derived from the input name). The directory structure is:
+> The priority-queue override applies to SLURM and LSF only; HTCondor and TS ignore it.
 
-- The input file name (without the `.inp` extension) is used as the base directory name (unless `--output-dir` is provided).
-- Inside the base directory, there are subdirectories for each job, named `job_0001`, `job_0002`, etc.
-- Each job subdirectory contains:
-  - `*.out`: Standard output of the job.
-  - `*.err`: Standard error of the job.
-  - `*.log`: Log file of the job (HTCondor only).
-  - `*.root`: Output files generated by FLUKA (optional, depending on the custom executable).
+## Common options
 
-Example directory structure:
+These apply to every backend subcommand:
+
+| Flag | Name | Description |
+|------|------|-------------|
+| `-f` | `--input`      | FLUKA input file (must end in `.inp`). |
+| `-n` | `--njobs`      | Number of independent jobs (one random seed each). |
+| `-c` | `--custom-exe` | Path to a custom FLUKA executable (passed as `-e` to `rfluka`). Defaults to FLUKA's standard executable. |
+| `-d` | `--output-dir` | Root directory for the job subfolders (default: input name without `.inp`). |
+| `-N` | `--nprim`      | Primary particles per job — overwrites the `START` card. Omit to keep the value in the `.inp`. |
+| `-w` | `--dry-run`    | Build the scripts and print the commands without submitting. |
+
+## Backend-specific options
+
+**SLURM** (`slurm`)
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-q` `--queue`  | `production` | SLURM partition. |
+| `-m` `--mem`    | `1500`       | Memory per node (MB). |
+| `-t` `--ntasks` | `1`          | Tasks per job (`--ntasks`). |
+| `-o` `--nodes`  | `1`          | Nodes per job (`--nodes`). |
+| `-T` `--time`   | `1-00:00:00` | Time limit `D-HH:MM:SS`, max `4-00:00:00`. |
+| `-g` `--gres`   | `disk:1G`    | Generic resources (`--gres`), e.g. `gpu:1`. |
+
+**LSF** (`lsf`)
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-q` `--queue`  | `production` | LSF queue. |
+| `-m` `--mem`    | `1500`       | Memory limit (MB). |
+| `-t` `--ntasks` | `1`          | Slots per job (`-n`). |
+| `-T` `--time`   | `1-00:00:00` | Time limit `D-HH:MM:SS`, max `4-00:00:00`. |
+
+**HTCondor** (`condor`)
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-q` `--queue`        | `vanilla` | HTCondor universe. |
+| `-m` `--mem`          | `1500`    | `request_memory` (MB). |
+| `-t` `--ncpu`         | `1`       | `request_cpus`. |
+| `-o` `--disk`         | `100000`  | `request_disk` (kB). |
+| `-T` `--time`         | `86400`   | `+MaxRuntime` (s), max `345600` (4 days). |
+| `--transfer-files`    | `yes`     | `should_transfer_files`. |
+| `--output` / `--error` / `--log` | `job_$(Cluster)_$(Process).{out,err,log}` | File name patterns. |
+
+**Task Spooler** (`ts`) — no extra options; uses the common flags only.
+
+## YAML config format
+
+A YAML config holds the same keys as the CLI flags. Minimal SLURM example:
+
+```yaml
+backend: slurm
+input: /path/to/sim.inp
+njobs: 5
+nprim: 10000                 # optional
+custom_exe: /path/to/myexe   # optional
+queue: production
+mem: "1500"
+ntasks: 1
+nodes: 1
+time: "1-00:00:00"
+gres: "disk:1G"
+benchmark_priority_queue: priority   # optional, required for `benchmark quick`
+```
+
+See `JobConfigs/` for working examples.
+
+## Dry run
+
+Add `-w` / `--dry-run` to any subcommand to build the scripts and print the commands
+without submitting:
+
+```sh
+python launch_jobs.py slurm -f sim.inp -n 10 -T 1-00:00:00 -w
+```
+
+## Output layout
+
+Jobs are written under the output directory (default: the input name without `.inp`):
 
 ```text
-input_file_name/
+sim/
 ├── job_0001/
-│   ├── job_0001.out
-│   ├── job_0001.err
-│   ├── job_0001.log (HTCondor only)
-│   └── *.root (optional)
+│   ├── sim_0001.inp        # per-job input, unique RANDOMIZ seed
+│   ├── *.out               # FLUKA stdout
+│   ├── *.err               # FLUKA stderr
+│   ├── *.log               # HTCondor only
+│   └── *.root              # FLUKA output (depends on the executable)
 ├── job_0002/
-│   ├── job_0002.out
-│   ├── job_0002.err
-│   ├── job_0002.log (HTCondor only)
-│   └── *.root (optional)
+│   └── ...
 └── ...
 ```
+
+## Collecting results
+
+After the jobs finish, gather every job's `.root` files into a single
+`root_files/` directory per parent run. From the directory that contains the run
+folders:
+
+```sh
+python collect_results.py
+```
+
+It prints a table of the planned moves, asks for confirmation, then moves the
+`.root` files and removes the emptied `job_*` directories. Jobs with no `.root`
+file are flagged.
+
+## Checking seeds
+
+Each job is made statistically independent by a distinct `RANDOMIZ` seed.
+`launch_jobs.py` guarantees uniqueness at generation — including across re-launches
+into the same output directory. To audit an existing set of runs (older batches,
+manually edited inputs, overlapping launches):
+
+```sh
+python check_seeds.py
+```
+
+Run from the directory containing the run folders. It scans every `*/job_*/*.inp`,
+reports any duplicate seeds in a table, and exits non-zero when duplicates are
+found — so it can be used as a gate in scripts or CI.
