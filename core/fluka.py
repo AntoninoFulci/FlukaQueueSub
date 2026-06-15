@@ -62,8 +62,9 @@ def detect_fluka_path() -> tuple[str, str]:
         raise SystemExit(1)
 
 
-def generate_input(base_name: str, iteration: int, work_dir: str, nprim: int | None = None) -> str:
-    seed = random.randint(1, int(9e7))
+def generate_input(base_name: str, iteration: int, work_dir: str, nprim: int | None = None, seed: int | None = None) -> str:
+    if seed is None:
+        seed = random.randint(1, int(9e7))
     new_randomiz = f"RANDOMIZ          1.{seed:>10d}\n"
 
     src = os.path.join(work_dir, f"{base_name}.inp")
