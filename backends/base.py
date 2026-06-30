@@ -9,6 +9,7 @@ class JobInfo:
     iteration: int
     fluka_path: str
     custom_exe: str | None
+    use_dpm: bool = False
 
 
 class QueueBackend(ABC):

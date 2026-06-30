@@ -18,7 +18,9 @@ class TSBackend(QueueBackend):
 
     def submit(self, script_path: str | None, job_info: JobInfo, args: Namespace) -> str:
         fluka_parts = ["rfluka", "-M", "1"]
-        if job_info.custom_exe is not None:
+        if job_info.use_dpm:
+            fluka_parts.append("-d")
+        elif job_info.custom_exe is not None:
             fluka_parts.extend(["-e", job_info.custom_exe])
         fluka_parts.append(job_info.input_file)
         cmd_list = ["ts"] + fluka_parts

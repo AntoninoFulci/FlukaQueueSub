@@ -54,7 +54,9 @@ class HTCondorBackend(QueueBackend):
 
     def generate_script(self, job_info: JobInfo, job_dir: str, args: Namespace) -> str:
         fluka_cmd = f"{job_info.fluka_path}/rfluka -M 1"
-        if job_info.custom_exe is not None:
+        if job_info.use_dpm:
+            fluka_cmd += " -d"
+        elif job_info.custom_exe is not None:
             fluka_cmd += f" -e {job_info.custom_exe}"
 
         content = _SCRIPT_TEMPLATE.substitute(
