@@ -27,6 +27,7 @@ def load_yaml_config(path: str, backends: dict[str, QueueBackend]) -> Namespace:
     parser.add_argument("--input",      dest="input",      default=None)
     parser.add_argument("--njobs",      dest="njobs",      type=int, default=None)
     parser.add_argument("--custom-exe", dest="custom_exe", default=None)
+    parser.add_argument("--dpm", dest="use_dpm", action="store_true", default=False)
     parser.add_argument("--dry-run",    dest="dry_run",    action="store_true", default=False)
     parser.add_argument("--output-dir", dest="output_dir", default=None)
     parser.add_argument("--nprim",      dest="nprim",      type=int, default=None)
@@ -50,5 +51,10 @@ def load_yaml_config(path: str, backends: dict[str, QueueBackend]) -> Namespace:
         raise ValueError(f"Il file di input deve terminare con .inp: {defaults['input']!r}")
     if defaults.get("njobs") is None:
         raise ValueError(f"Campo 'njobs' mancante in {path!r}")
+
+    if defaults.get("use_dpm") and defaults.get("custom_exe"):
+        raise ValueError(
+            "use_dpm and custom_exe are mutually exclusive: set only one."
+        )
 
     return Namespace(**defaults)

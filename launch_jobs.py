@@ -110,6 +110,9 @@ def _build_parser() -> ArgumentParser:
                          dest="custom_exe",
                          help="Percorso all'eseguibile FLUKA custom (passato come -e a rfluka); "
                               "se omesso usa l'eseguibile di default di FLUKA")
+        sub.add_argument("-D", "--dpm", action="store_true", dest="use_dpm",
+                         help="Usa l'eseguibile DPMJET/RQMD (rfluka -d); "
+                              "mutuamente esclusivo con --custom-exe")
         sub.add_argument("-w", "--dry-run",    action="store_true",
                          dest="dry_run",
                          help="Modalita' dry-run: costruisce gli script e mostra i comandi "
@@ -129,6 +132,9 @@ def _build_parser() -> ArgumentParser:
 
 
 def _execute_jobs(args: Namespace, fluka_path: str) -> None:
+    if getattr(args, "use_dpm", False) and args.custom_exe is not None:
+        logging.error("--dpm e --custom-exe sono mutuamente esclusivi: usane uno solo.")
+        sys.exit(1)
     if args.custom_exe is not None and not os.path.isfile(args.custom_exe):
         logging.error("Custom exe non trovato: %s", args.custom_exe)
         sys.exit(1)
@@ -145,7 +151,8 @@ def _execute_jobs(args: Namespace, fluka_path: str) -> None:
         job_dir = filesystem.setup_job_dir(output_dir, i, args.input)
         seed = fluka.allocate_seed(used_seeds)
         new_input = fluka.generate_input(base_name, i, job_dir, nprim=args.nprim, seed=seed)
-        job_info = JobInfo(new_input, i, fluka_path, args.custom_exe)
+        job_info = JobInfo(new_input, i, fluka_path, args.custom_exe,
+                           use_dpm=getattr(args, "use_dpm", False))
         prepared.append((i, job_dir, job_info))
 
     # Fase 2: verifica seed unici su disco prima di inviare alcun job
@@ -187,6 +194,7 @@ def run_from_args(args: Namespace) -> None:
         ["-f", f"{C['R']}Input file{C['RE']}",  f"{C['M']}{args.input}{C['RE']}"],
         ["-n", f"{C['R']}Numero job{C['RE']}",  f"{C['M']}{args.njobs}{C['RE']}"],
         ["-c", f"{C['M']}Custom exe{C['RE']}",  f"{C['M']}{args.custom_exe or 'None'}{C['RE']}"],
+        ["-D", f"{C['M']}DPM{C['RE']}",        f"{C['M']}{getattr(args, 'use_dpm', False)}{C['RE']}"],
         ["-d", f"{C['B']}Output dir{C['RE']}",  f"{C['B']}{args.output_dir or 'Default'}{C['RE']}"],
         ["-N", f"{C['C']}N. primarie{C['RE']}", f"{C['C']}{args.nprim if args.nprim is not None else 'dal file'}{C['RE']}"],
         ["-w", f"{C['Y']}Dry run{C['RE']}",     f"{C['Y']}{args.dry_run}{C['RE']}"],
